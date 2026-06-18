@@ -69,6 +69,8 @@ char get_type(unsigned char bind, uint16_t shndx,
 		c = 'B';
 	else if (sh_flags & SHF_WRITE)
 		c = 'D';
+	else if (!(sh_flags & SHF_ALLOC))
+		c = 'N';
 	else
 		c = 'R';
 
