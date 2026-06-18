@@ -17,10 +17,10 @@ uint64_t swap64(uint64_t v, int swap);
 char get_type(unsigned char bind, uint16_t shndx,
 	      uint64_t sh_flags, uint32_t sh_type, const char *sec_name);
 void print_sym64(Elf64_Sym *sym, char *strtab, Elf64_Shdr *shdr,
-		 char *shstrtab, int swap);
+		 char *shstrtab, uint16_t shnum, int swap);
 void process_elf64(void *ptr, int swap, const char *filename);
 void print_sym32(Elf32_Sym *sym, char *strtab, Elf32_Shdr *shdr,
-		 char *shstrtab, int swap);
+		 char *shstrtab, uint16_t shnum, int swap);
 void process_elf32(void *ptr, int swap, const char *filename);
 void process_file(const char *filename, int nfiles);
 

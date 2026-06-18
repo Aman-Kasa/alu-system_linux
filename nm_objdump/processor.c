@@ -6,10 +6,11 @@
  * @strtab: string table
  * @shdr: section headers
  * @shstrtab: section name string table
+ * @shnum: number of sections
  * @swap: endian swap flag
  */
 void print_sym64(Elf64_Sym *sym, char *strtab, Elf64_Shdr *shdr,
-		 char *shstrtab, int swap)
+		 char *shstrtab, uint16_t shnum, int swap)
 {
 	uint16_t shndx = swap16(sym->st_shndx, swap);
 	uint64_t val = swap64(sym->st_value, swap);
@@ -18,7 +19,7 @@ void print_sym64(Elf64_Sym *sym, char *strtab, Elf64_Shdr *shdr,
 	const char *sec_name = NULL;
 	char t;
 
-	if (shndx < SHN_LORESERVE)
+	if (shndx < SHN_LORESERVE && shndx < shnum)
 	{
 		sh_type = swap32(shdr[shndx].sh_type, swap);
 		sh_flags = swap64(shdr[shndx].sh_flags, swap);
@@ -74,12 +75,7 @@ void process_elf64(void *ptr, int swap, const char *filename)
 		if (syms[j].st_name == 0 ||
 		    ELF64_ST_TYPE(syms[j].st_info) == STT_FILE)
 			continue;
-		if (ELF64_ST_TYPE(syms[j].st_info) == STT_NOTYPE &&
-		    ELF64_ST_BIND(syms[j].st_info) == STB_LOCAL &&
-		    syms[j].st_value == 0 &&
-		    syms[j].st_shndx == SHN_UNDEF)
-			continue;
-		print_sym64(&syms[j], strtab, shdr, shstrtab, swap);
+		print_sym64(&syms[j], strtab, shdr, shstrtab, shnum, swap);
 	}
 }
 
@@ -89,10 +85,11 @@ void process_elf64(void *ptr, int swap, const char *filename)
  * @strtab: string table
  * @shdr: section headers
  * @shstrtab: section name string table
+ * @shnum: number of sections
  * @swap: endian swap flag
  */
 void print_sym32(Elf32_Sym *sym, char *strtab, Elf32_Shdr *shdr,
-		 char *shstrtab, int swap)
+		 char *shstrtab, uint16_t shnum, int swap)
 {
 	uint16_t shndx = swap16(sym->st_shndx, swap);
 	uint32_t val = swap32(sym->st_value, swap);
@@ -100,7 +97,7 @@ void print_sym32(Elf32_Sym *sym, char *strtab, Elf32_Shdr *shdr,
 	const char *sec_name = NULL;
 	char t;
 
-	if (shndx < SHN_LORESERVE)
+	if (shndx < SHN_LORESERVE && shndx < shnum)
 	{
 		sh_type = swap32(shdr[shndx].sh_type, swap);
 		sh_flags = swap32(shdr[shndx].sh_flags, swap);
@@ -156,12 +153,7 @@ void process_elf32(void *ptr, int swap, const char *filename)
 		if (syms[j].st_name == 0 ||
 		    ELF32_ST_TYPE(syms[j].st_info) == STT_FILE)
 			continue;
-		if (ELF32_ST_TYPE(syms[j].st_info) == STT_NOTYPE &&
-		    ELF32_ST_BIND(syms[j].st_info) == STB_LOCAL &&
-		    syms[j].st_value == 0 &&
-		    syms[j].st_shndx == SHN_UNDEF)
-			continue;
-		print_sym32(&syms[j], strtab, shdr, shstrtab, swap);
+		print_sym32(&syms[j], strtab, shdr, shstrtab, shnum, swap);
 	}
 }
 
