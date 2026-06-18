@@ -72,8 +72,7 @@ void process_elf64(void *ptr, int swap, const char *filename)
 	for (j = 0; j < num; j++)
 	{
 		if (syms[j].st_name == 0 ||
-		    ELF64_ST_TYPE(syms[j].st_info) == STT_FILE ||
-		    ELF64_ST_TYPE(syms[j].st_info) == STT_SECTION)
+		    ELF64_ST_TYPE(syms[j].st_info) == STT_FILE)
 			continue;
 		print_sym64(&syms[j], strtab, shdr, shstrtab, swap);
 	}
@@ -150,8 +149,7 @@ void process_elf32(void *ptr, int swap, const char *filename)
 	for (j = 0; j < num; j++)
 	{
 		if (syms[j].st_name == 0 ||
-		    ELF32_ST_TYPE(syms[j].st_info) == STT_FILE ||
-		    ELF32_ST_TYPE(syms[j].st_info) == STT_SECTION)
+		    ELF32_ST_TYPE(syms[j].st_info) == STT_FILE)
 			continue;
 		print_sym32(&syms[j], strtab, shdr, shstrtab, swap);
 	}
