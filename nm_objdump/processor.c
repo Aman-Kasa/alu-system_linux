@@ -74,6 +74,11 @@ void process_elf64(void *ptr, int swap, const char *filename)
 		if (syms[j].st_name == 0 ||
 		    ELF64_ST_TYPE(syms[j].st_info) == STT_FILE)
 			continue;
+		if (ELF64_ST_TYPE(syms[j].st_info) == STT_NOTYPE &&
+		    ELF64_ST_BIND(syms[j].st_info) == STB_LOCAL &&
+		    syms[j].st_value == 0 &&
+		    syms[j].st_shndx == SHN_UNDEF)
+			continue;
 		print_sym64(&syms[j], strtab, shdr, shstrtab, swap);
 	}
 }
@@ -150,6 +155,11 @@ void process_elf32(void *ptr, int swap, const char *filename)
 	{
 		if (syms[j].st_name == 0 ||
 		    ELF32_ST_TYPE(syms[j].st_info) == STT_FILE)
+			continue;
+		if (ELF32_ST_TYPE(syms[j].st_info) == STT_NOTYPE &&
+		    ELF32_ST_BIND(syms[j].st_info) == STB_LOCAL &&
+		    syms[j].st_value == 0 &&
+		    syms[j].st_shndx == SHN_UNDEF)
 			continue;
 		print_sym32(&syms[j], strtab, shdr, shstrtab, swap);
 	}
