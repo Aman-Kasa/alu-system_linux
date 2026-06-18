@@ -5,5 +5,8 @@ OBJ = main.o processor.o
 hnm: $(OBJ)
 	$(CC) $(OBJ) -o hnm
 
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
 clean:
 	rm -f $(OBJ) hnm
