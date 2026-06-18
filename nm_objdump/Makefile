@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS = -Wall -Werror -Wextra -pedantic
-OBJ = main.o processor.o
+OBJ = main.o processor.o utils.o
 
 hnm: $(OBJ)
 	$(CC) $(OBJ) -o hnm
