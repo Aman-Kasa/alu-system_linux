@@ -1,12 +1,9 @@
-# Makefile
 CC = gcc
 CFLAGS = -Wall -Werror -Wextra -pedantic
-TARGET = hnm
+OBJ = main.o processor.o
 
-all: $(TARGET)
-
-$(TARGET): main.c
-	$(CC) $(CFLAGS) main.c -o $(TARGET)
+hnm: $(OBJ)
+	$(CC) $(OBJ) -o hnm
 
 clean:
-	rm -f $(TARGET)
+	rm -f $(OBJ) hnm
