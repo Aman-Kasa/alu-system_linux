@@ -5,22 +5,28 @@
  * @sym: pointer to symbol
  * @strtab: string table
  * @shdr: section headers
+ * @shstrtab: section name string table
  * @swap: endian swap flag
  */
-void print_sym64(Elf64_Sym *sym, char *strtab, Elf64_Shdr *shdr, int swap)
+void print_sym64(Elf64_Sym *sym, char *strtab, Elf64_Shdr *shdr,
+		 char *shstrtab, int swap)
 {
 	uint16_t shndx = swap16(sym->st_shndx, swap);
 	uint64_t val = swap64(sym->st_value, swap);
 	uint32_t sh_type = 0;
 	uint64_t sh_flags = 0;
+	const char *sec_name = NULL;
 	char t;
 
 	if (shndx < SHN_LORESERVE)
 	{
 		sh_type = swap32(shdr[shndx].sh_type, swap);
 		sh_flags = swap64(shdr[shndx].sh_flags, swap);
+		if (shstrtab)
+			sec_name = shstrtab + swap32(shdr[shndx].sh_name, swap);
 	}
-	t = get_type(ELF64_ST_BIND(sym->st_info), shndx, sh_flags, sh_type);
+	t = get_type(ELF64_ST_BIND(sym->st_info), shndx, sh_flags,
+		     sh_type, sec_name);
 	if (shndx == SHN_UNDEF)
 		printf("                 %c %s\n", t,
 		       strtab + swap32(sym->st_name, swap));
@@ -41,6 +47,9 @@ void process_elf64(void *ptr, int swap, const char *filename)
 	Elf64_Shdr *shdr = (Elf64_Shdr *)((char *)ptr +
 					   swap64(ehdr->e_shoff, swap));
 	uint16_t shnum = swap16(ehdr->e_shnum, swap);
+	uint16_t shstrndx = swap16(ehdr->e_shstrndx, swap);
+	char *shstrtab = (char *)ptr +
+		swap64(shdr[shstrndx].sh_offset, swap);
 	Elf64_Sym *syms;
 	char *strtab;
 	int i, j, num, si = -1;
@@ -58,14 +67,14 @@ void process_elf64(void *ptr, int swap, const char *filename)
 	}
 	syms = (Elf64_Sym *)((char *)ptr + swap64(shdr[si].sh_offset, swap));
 	strtab = (char *)ptr +
-		swap64(shdr[swap16(shdr[si].sh_link, swap)].sh_offset, swap);
+		swap64(shdr[swap32(shdr[si].sh_link, swap)].sh_offset, swap);
 	num = swap64(shdr[si].sh_size, swap) / sizeof(Elf64_Sym);
 	for (j = 0; j < num; j++)
 	{
 		if (syms[j].st_name == 0 ||
 		    ELF64_ST_TYPE(syms[j].st_info) == STT_FILE)
 			continue;
-		print_sym64(&syms[j], strtab, shdr, swap);
+		print_sym64(&syms[j], strtab, shdr, shstrtab, swap);
 	}
 }
 
@@ -74,21 +83,27 @@ void process_elf64(void *ptr, int swap, const char *filename)
  * @sym: pointer to symbol
  * @strtab: string table
  * @shdr: section headers
+ * @shstrtab: section name string table
  * @swap: endian swap flag
  */
-void print_sym32(Elf32_Sym *sym, char *strtab, Elf32_Shdr *shdr, int swap)
+void print_sym32(Elf32_Sym *sym, char *strtab, Elf32_Shdr *shdr,
+		 char *shstrtab, int swap)
 {
 	uint16_t shndx = swap16(sym->st_shndx, swap);
 	uint32_t val = swap32(sym->st_value, swap);
 	uint32_t sh_type = 0, sh_flags = 0;
+	const char *sec_name = NULL;
 	char t;
 
 	if (shndx < SHN_LORESERVE)
 	{
 		sh_type = swap32(shdr[shndx].sh_type, swap);
 		sh_flags = swap32(shdr[shndx].sh_flags, swap);
+		if (shstrtab)
+			sec_name = shstrtab + swap32(shdr[shndx].sh_name, swap);
 	}
-	t = get_type(ELF32_ST_BIND(sym->st_info), shndx, sh_flags, sh_type);
+	t = get_type(ELF32_ST_BIND(sym->st_info), shndx, sh_flags,
+		     sh_type, sec_name);
 	if (shndx == SHN_UNDEF)
 		printf("         %c %s\n", t,
 		       strtab + swap32(sym->st_name, swap));
@@ -109,6 +124,9 @@ void process_elf32(void *ptr, int swap, const char *filename)
 	Elf32_Shdr *shdr = (Elf32_Shdr *)((char *)ptr +
 					   swap32(ehdr->e_shoff, swap));
 	uint16_t shnum = swap16(ehdr->e_shnum, swap);
+	uint16_t shstrndx = swap16(ehdr->e_shstrndx, swap);
+	char *shstrtab = (char *)ptr +
+		swap32(shdr[shstrndx].sh_offset, swap);
 	Elf32_Sym *syms;
 	char *strtab;
 	int i, j, num, si = -1;
@@ -126,14 +144,14 @@ void process_elf32(void *ptr, int swap, const char *filename)
 	}
 	syms = (Elf32_Sym *)((char *)ptr + swap32(shdr[si].sh_offset, swap));
 	strtab = (char *)ptr +
-		swap32(shdr[swap16(shdr[si].sh_link, swap)].sh_offset, swap);
+		swap32(shdr[swap32(shdr[si].sh_link, swap)].sh_offset, swap);
 	num = swap32(shdr[si].sh_size, swap) / sizeof(Elf32_Sym);
 	for (j = 0; j < num; j++)
 	{
 		if (syms[j].st_name == 0 ||
 		    ELF32_ST_TYPE(syms[j].st_info) == STT_FILE)
 			continue;
-		print_sym32(&syms[j], strtab, shdr, swap);
+		print_sym32(&syms[j], strtab, shdr, shstrtab, swap);
 	}
 }
 

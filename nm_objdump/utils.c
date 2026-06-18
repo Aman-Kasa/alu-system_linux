@@ -1,4 +1,5 @@
 #include "header.h"
+#include <string.h>
 
 /**
  * swap16 - byte-swaps a 16-bit value
@@ -45,12 +46,16 @@ uint64_t swap64(uint64_t v, int swap)
  * @shndx: section index
  * @sh_flags: section flags
  * @sh_type: section type
+ * @sec_name: section name (may be NULL)
  * Return: symbol type character
  */
 char get_type(unsigned char bind, uint16_t shndx,
-	      uint64_t sh_flags, uint32_t sh_type)
+	      uint64_t sh_flags, uint32_t sh_type, const char *sec_name)
 {
 	char c;
+	int is_if = (sh_type == SHT_INIT_ARRAY || sh_type == SHT_FINI_ARRAY ||
+		(sec_name && (strcmp(sec_name, ".init_array") == 0 ||
+			      strcmp(sec_name, ".fini_array") == 0)));
 
 	if (shndx == SHN_UNDEF)
 		c = 'U';
@@ -58,9 +63,7 @@ char get_type(unsigned char bind, uint16_t shndx,
 		c = 'A';
 	else if (shndx == SHN_COMMON)
 		c = 'C';
-	else if (sh_type == SHT_INIT_ARRAY || sh_type == SHT_FINI_ARRAY)
-		c = 'T';
-	else if (sh_flags & SHF_EXECINSTR)
+	else if (is_if || sh_flags & SHF_EXECINSTR)
 		c = 'T';
 	else if (sh_type == SHT_NOBITS)
 		c = 'B';
