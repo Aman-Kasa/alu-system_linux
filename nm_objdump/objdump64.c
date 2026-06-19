@@ -56,8 +56,17 @@ static void print_flags64(Elf64_Ehdr *ehdr, int has_syms, int sw)
 		flags |= 0x10;
 	if (type == ET_DYN)
 		flags |= 0x40;
+	if (type == ET_REL)
+		flags |= 0x01;
+	if (type != ET_REL)
+		flags |= 0x100;
 	printf("architecture: %s, flags 0x%08x:\n",
 	       arch_str64(od_swap16(ehdr->e_machine, sw)), flags);
+	if (type == ET_REL)
+	{
+		printf("%sHAS_RELOC", sep);
+		sep = ", ";
+	}
 	if (type == ET_EXEC)
 	{
 		printf("%sEXEC_P", sep);
@@ -73,7 +82,8 @@ static void print_flags64(Elf64_Ehdr *ehdr, int has_syms, int sw)
 		printf("%sDYNAMIC", sep);
 		sep = ", ";
 	}
-	printf("%sD_PAGED", sep);
+	if (type != ET_REL)
+		printf("%sD_PAGED", sep);
 	printf("\nstart address 0x%016lx\n\n", entry);
 }
 
@@ -98,11 +108,14 @@ void hobjdump64(void *ptr, const char *filename)
 	const char *sec_name;
 
 	for (i = 0; i < shnum; i++)
-		if (od_swap32(shdr[i].sh_type, sw) == SHT_SYMTAB)
+	{
+		if (od_swap32(shdr[i].sh_type, sw) == SHT_SYMTAB ||
+		    od_swap32(shdr[i].sh_type, sw) == SHT_DYNSYM)
 		{
 			has_syms = 1;
 			break;
 		}
+	}
 	printf("\n%s:     file format %s\n",
 	       filename, fmt_str64(od_swap16(ehdr->e_machine, sw),
 				   ((unsigned char *)ptr)[EI_DATA]));
