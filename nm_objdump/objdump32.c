@@ -94,37 +94,20 @@ static void print_flags32(Elf32_Ehdr *ehdr, int has_syms, int sw,
 }
 
 /**
- * hobjdump32 - prints objdump -sf output for a 32-bit ELF
- * @ptr: pointer to mapped ELF
- * @filename: file name
+ * dump_sections32 - dumps all relevant sections of a 32-bit ELF
+ * @ptr: mapped ELF data
+ * @shdr: section header array
+ * @shstrtab: section name string table
+ * @shnum: number of sections
+ * @sw: swap flag
  */
-void hobjdump32(void *ptr, const char *filename)
+static void dump_sections32(void *ptr, Elf32_Shdr *shdr,
+			    char *shstrtab, uint16_t shnum, int sw)
 {
-	Elf32_Ehdr *ehdr = (Elf32_Ehdr *)ptr;
-	int sw = (((unsigned char *)ptr)[EI_DATA] == ELFDATA2MSB);
-	Elf32_Shdr *shdr = (Elf32_Shdr *)((char *)ptr +
-					   od_swap32(ehdr->e_shoff, sw));
-	uint16_t shnum = od_swap16(ehdr->e_shnum, sw);
-	uint16_t shstrndx = od_swap16(ehdr->e_shstrndx, sw);
-	char *shstrtab = (char *)ptr +
-		od_swap32(shdr[shstrndx].sh_offset, sw);
-	int has_syms = 0, i;
+	int i;
 	uint32_t sh_size, sh_off, sh_addr, sh_type;
 	const char *sec_name;
 
-	for (i = 0; i < shnum; i++)
-	{
-		if (od_swap32(shdr[i].sh_type, sw) == SHT_SYMTAB ||
-		    od_swap32(shdr[i].sh_type, sw) == SHT_DYNSYM)
-		{
-			has_syms = 1;
-			break;
-		}
-	}
-	printf("\n%s:     file format %s\n",
-	       filename, fmt_str32(od_swap16(ehdr->e_machine, sw),
-				   ((unsigned char *)ptr)[EI_DATA]));
-	print_flags32(ehdr, has_syms, sw, ((unsigned char *)ptr)[EI_DATA]);
 	for (i = 0; i < shnum; i++)
 	{
 		sh_type = od_swap32(shdr[i].sh_type, sw);
@@ -141,4 +124,37 @@ void hobjdump32(void *ptr, const char *filename)
 		printf("Contents of section %s:\n", sec_name);
 		od_hexdump(sh_addr, (unsigned char *)ptr + sh_off, sh_size);
 	}
+}
+
+/**
+ * hobjdump32 - prints objdump -sf output for a 32-bit ELF
+ * @ptr: pointer to mapped ELF
+ * @filename: file name
+ */
+void hobjdump32(void *ptr, const char *filename)
+{
+	Elf32_Ehdr *ehdr = (Elf32_Ehdr *)ptr;
+	int sw = (((unsigned char *)ptr)[EI_DATA] == ELFDATA2MSB);
+	Elf32_Shdr *shdr = (Elf32_Shdr *)((char *)ptr +
+					   od_swap32(ehdr->e_shoff, sw));
+	uint16_t shnum = od_swap16(ehdr->e_shnum, sw);
+	uint16_t shstrndx = od_swap16(ehdr->e_shstrndx, sw);
+	char *shstrtab = (char *)ptr +
+		od_swap32(shdr[shstrndx].sh_offset, sw);
+	int has_syms = 0, i;
+
+	for (i = 0; i < shnum; i++)
+	{
+		if (od_swap32(shdr[i].sh_type, sw) == SHT_SYMTAB ||
+		    od_swap32(shdr[i].sh_type, sw) == SHT_DYNSYM)
+		{
+			has_syms = 1;
+			break;
+		}
+	}
+	printf("\n%s:     file format %s\n",
+	       filename, fmt_str32(od_swap16(ehdr->e_machine, sw),
+				   ((unsigned char *)ptr)[EI_DATA]));
+	print_flags32(ehdr, has_syms, sw, ((unsigned char *)ptr)[EI_DATA]);
+	dump_sections32(ptr, shdr, shstrtab, shnum, sw);
 }

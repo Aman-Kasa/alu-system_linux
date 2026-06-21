@@ -40,24 +40,24 @@ static const char *fmt_str64(uint16_t machine, unsigned char endian)
 /**
  * print_flags64 - prints ELF flags header block
  * @ehdr: ELF header
- * @has_syms: 1 if .symtab exists
+ * @has_syms: 1 if symbol table exists
  * @sw: swap flag
  */
 static void print_flags64(Elf64_Ehdr *ehdr, int has_syms, int sw)
 {
 	uint16_t type = od_swap16(ehdr->e_type, sw);
 	uint64_t entry = od_swap64(ehdr->e_entry, sw);
-	uint32_t flags = 0x100;
+	uint32_t flags = 0;
 	const char *sep = "";
 
+	if (type == ET_REL)
+		flags |= 0x01;
 	if (type == ET_EXEC)
 		flags |= 0x02;
 	if (has_syms)
 		flags |= 0x10;
 	if (type == ET_DYN)
 		flags |= 0x40;
-	if (type == ET_REL)
-		flags |= 0x01;
 	if (type != ET_REL)
 		flags |= 0x100;
 	printf("architecture: %s, flags 0x%08x:\n",
@@ -88,38 +88,21 @@ static void print_flags64(Elf64_Ehdr *ehdr, int has_syms, int sw)
 }
 
 /**
- * hobjdump64 - prints objdump -sf output for a 64-bit ELF
- * @ptr: pointer to mapped ELF
- * @filename: file name
+ * dump_sections64 - dumps all relevant sections of a 64-bit ELF
+ * @ptr: mapped ELF data
+ * @shdr: section header array
+ * @shstrtab: section name string table
+ * @shnum: number of sections
+ * @sw: swap flag
  */
-void hobjdump64(void *ptr, const char *filename)
+static void dump_sections64(void *ptr, Elf64_Shdr *shdr,
+			    char *shstrtab, uint16_t shnum, int sw)
 {
-	Elf64_Ehdr *ehdr = (Elf64_Ehdr *)ptr;
-	int sw = (((unsigned char *)ptr)[EI_DATA] == ELFDATA2MSB);
-	Elf64_Shdr *shdr = (Elf64_Shdr *)((char *)ptr +
-					   od_swap64(ehdr->e_shoff, sw));
-	uint16_t shnum = od_swap16(ehdr->e_shnum, sw);
-	uint16_t shstrndx = od_swap16(ehdr->e_shstrndx, sw);
-	char *shstrtab = (char *)ptr +
-		od_swap64(shdr[shstrndx].sh_offset, sw);
-	int has_syms = 0, i;
+	int i;
 	uint64_t sh_size, sh_off, sh_addr;
 	uint32_t sh_type;
 	const char *sec_name;
 
-	for (i = 0; i < shnum; i++)
-	{
-		if (od_swap32(shdr[i].sh_type, sw) == SHT_SYMTAB ||
-		    od_swap32(shdr[i].sh_type, sw) == SHT_DYNSYM)
-		{
-			has_syms = 1;
-			break;
-		}
-	}
-	printf("\n%s:     file format %s\n",
-	       filename, fmt_str64(od_swap16(ehdr->e_machine, sw),
-				   ((unsigned char *)ptr)[EI_DATA]));
-	print_flags64(ehdr, has_syms, sw);
 	for (i = 0; i < shnum; i++)
 	{
 		sh_type = od_swap32(shdr[i].sh_type, sw);
@@ -136,4 +119,37 @@ void hobjdump64(void *ptr, const char *filename)
 		printf("Contents of section %s:\n", sec_name);
 		od_hexdump(sh_addr, (unsigned char *)ptr + sh_off, sh_size);
 	}
+}
+
+/**
+ * hobjdump64 - prints objdump -sf output for a 64-bit ELF
+ * @ptr: pointer to mapped ELF
+ * @filename: file name
+ */
+void hobjdump64(void *ptr, const char *filename)
+{
+	Elf64_Ehdr *ehdr = (Elf64_Ehdr *)ptr;
+	int sw = (((unsigned char *)ptr)[EI_DATA] == ELFDATA2MSB);
+	Elf64_Shdr *shdr = (Elf64_Shdr *)((char *)ptr +
+					   od_swap64(ehdr->e_shoff, sw));
+	uint16_t shnum = od_swap16(ehdr->e_shnum, sw);
+	uint16_t shstrndx = od_swap16(ehdr->e_shstrndx, sw);
+	char *shstrtab = (char *)ptr +
+		od_swap64(shdr[shstrndx].sh_offset, sw);
+	int has_syms = 0, i;
+
+	for (i = 0; i < shnum; i++)
+	{
+		if (od_swap32(shdr[i].sh_type, sw) == SHT_SYMTAB ||
+		    od_swap32(shdr[i].sh_type, sw) == SHT_DYNSYM)
+		{
+			has_syms = 1;
+			break;
+		}
+	}
+	printf("\n%s:     file format %s\n",
+	       filename, fmt_str64(od_swap16(ehdr->e_machine, sw),
+				   ((unsigned char *)ptr)[EI_DATA]));
+	print_flags64(ehdr, has_syms, sw);
+	dump_sections64(ptr, shdr, shstrtab, shnum, sw);
 }
