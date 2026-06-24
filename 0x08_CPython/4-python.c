@@ -3,37 +3,32 @@
 
 /**
  * print_python_string - Prints information about Python strings
- * @p: Pointer to a PyObject (expected to be a string/unicode)
+ * @p: Pointer to a PyObject
  */
 void print_python_string(PyObject *p)
 {
-    PyASCIIObject *ascii;
-    PyCompactUnicodeObject *compact;
-    Py_ssize_t length;
+    PyASCIIObject *ascii = (PyASCIIObject *)p;
+    const char *value;
 
     printf("[.] string object info\n");
-    
-    if (strcmp(p->ob_type->tp_name, "str") != 0)
+
+    /* Verify if the object is actually a string */
+    if (!PyUnicode_Check(p))
     {
         printf("  [ERROR] Invalid String Object\n");
         return;
     }
 
-    ascii = (PyASCIIObject *)p;
-    length = ascii->length;
-
-    if (ascii->state.compact && ascii->state.ascii)
-    {
+    /* Print type based on whether it is compact/ready */
+    if (PyUnicode_IS_COMPACT_ASCII(p))
         printf("  type: compact ascii\n");
-        printf("  length: %ld\n", length);
-        printf("  value: %s\n", (char *)(ascii + 1));
-    }
-    else if (ascii->state.compact && !ascii->state.ascii)
-    {
-        compact = (PyCompactUnicodeObject *)p;
+    else
         printf("  type: compact unicode object\n");
-        printf("  length: %ld\n", length);
-        /* Cast to wide string equivalent for output */
-        printf("  value: %ls\n", (wchar_t *)(compact + 1));
-    }
+
+    /* Get length */
+    printf("  length: %ld\n", PyUnicode_GET_LENGTH(p));
+
+    /* Get the UTF-8 representation for value */
+    value = PyUnicode_AsUTF8(p);
+    printf("  value: %s\n", value);
 }
