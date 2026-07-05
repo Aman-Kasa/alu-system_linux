@@ -1,34 +1,19 @@
-CC = gcc
-CFLAGS = -Wall -Werror -Wextra -pedantic -std=gnu89
+CC       = gcc
+CFLAGS   = -g3 -Wall -Werror -Wextra -pedantic
+FILENAME = strace
 
-all: strace_0 strace_1 strace_2 strace_3 strace_4 strace_5 strace_6 strace_7 strace_8
+0_SRC = 0-$(FILENAME).c
+$(FILENAME)_0: $(0_SRC:.c=.o)
+	$(CC) $(CFLAGS) $(0_SRC) -o $(FILENAME)_0
 
-strace_0: strace_0.c
-	$(CC) $(CFLAGS) strace_0.c -o strace_0
+1_SRC = 1-$(FILENAME).c
+$(FILENAME)_1: $(1_SRC:.c=.o)
+	$(CC) $(CFLAGS) $(1_SRC) -o $(FILENAME)_1
 
-strace_1: strace_1.c
-	$(CC) $(CFLAGS) strace_1.c -o strace_1
+2_SRC = 2-$(FILENAME).c
+$(FILENAME)_2: $(2_SRC:.c=.o)
+	$(CC) $(CFLAGS) $(2_SRC) -o $(FILENAME)_2
 
-strace_2: strace_2.c
-	$(CC) $(CFLAGS) strace_2.c -o strace_2
-
-strace_3: strace_3.c
-	$(CC) $(CFLAGS) strace_3.c -o strace_3
-
-strace_4: strace_4.c
-	$(CC) $(CFLAGS) strace_4.c -o strace_4
-
-strace_5: strace_5.c
-	$(CC) $(CFLAGS) strace_5.c -o strace_5
-
-strace_6: strace_6.c
-	$(CC) $(CFLAGS) strace_6.c -o strace_6
-
-strace_7: strace_7.c
-	$(CC) $(CFLAGS) strace_7.c -o strace_7
-
-strace_8: strace_8.c
-	$(CC) $(CFLAGS) strace_8.c -o strace_8
-
-clean:
-	rm -f strace_0 strace_1 strace_2 strace_3 strace_4 strace_5 strace_6 strace_7 strace_8
+3_SRC = 3-$(FILENAME).c
+$(FILENAME)_3: $(3_SRC:.c=.o)
+	$(CC) $(CFLAGS) $(3_SRC) -o $(FILENAME)_3
