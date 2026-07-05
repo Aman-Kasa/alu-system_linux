@@ -9,14 +9,14 @@
 /**
  * print_args - Prints the raw hex arguments for a system call
  * @r: The registers struct
- * @sc: Pointer to the specific syscall table entry
+ * @nb_args: Number of arguments to print
  */
-void print_args(struct user_regs_struct *r, syscall_t *sc)
+void print_args(struct user_regs_struct *r, int nb_args)
 {
 	int i;
 	unsigned long arg;
 
-	for (i = 0; i < sc->def; i++) /* Use your struct's argument count field */
+	for (i = 0; i < nb_args; i++)
 	{
 		switch (i)
 		{
@@ -32,35 +32,27 @@ void print_args(struct user_regs_struct *r, syscall_t *sc)
 			printf("0");
 		else
 			printf("0x%lx", arg);
-		
-		if (i < sc->def - 1)
+		if (i < nb_args - 1)
 			printf(", ");
 	}
-	/* Note: Depending on your provided header, you may need a condition here 
-	   to check if the syscall is variadic and print ", ..." */
 }
 
 /**
- * main - Traces a command, printing syscall names, args, and returns.
+ * main - Traces a command, printing raw hex signatures.
  * @argc: Argument count
  * @argv: Argument vector
  * @envp: Environment variables
- * Return: 0 on success, 1 on failure
+ * Return: 0 on success
  */
 int main(int argc, char **argv, char **envp)
 {
 	pid_t pid;
-	int status;
+	int status, is_entry = 0, nb_args;
 	struct user_regs_struct r;
-	int is_entry = 1;
-	syscall_t *sc;
 
 	if (argc < 2)
-	{
-		fprintf(stderr, "Usage: %s command [args...]\n", argv[0]);
 		return (1);
-	}
-
+	setbuf(stdout, NULL);
 	pid = fork();
 	if (pid == 0)
 	{
@@ -68,42 +60,30 @@ int main(int argc, char **argv, char **envp)
 		execve(argv[1], argv + 1, envp);
 		exit(1);
 	}
-	else
+	wait(&status);
+	ptrace(PTRACE_SETOPTIONS, pid, 0, PTRACE_O_TRACESYSGOOD);
+	printf("execve(0, 0, 0) = 0\n");
+	while (1)
 	{
+		ptrace(PTRACE_SYSCALL, pid, NULL, NULL);
 		wait(&status);
-		ptrace(PTRACE_SETOPTIONS, pid, 0, PTRACE_O_TRACESYSGOOD);
-		while (1)
+		if (WIFEXITED(status))
+			break;
+		if (WIFSTOPPED(status) && WSTOPSIG(status) == (SIGTRAP | 0x80))
 		{
-			ptrace(PTRACE_SYSCALL, pid, NULL, NULL);
-			wait(&status);
-			if (WIFEXITED(status))
+			ptrace(PTRACE_GETREGS, pid, NULL, &r);
+			nb_args = syscalls_64[r.orig_rax].def; /* Adjust if field has a different name */
+			if (!is_entry)
 			{
-				if (!is_entry)
-					printf("?\n");
-				break;
+				printf("%s(", syscalls_64[r.orig_rax].name);
+				print_args(&r, nb_args);
+				printf(") = ");
+				is_entry = 1;
 			}
-			if (WIFSTOPPED(status) && WSTOPSIG(status) == (SIGTRAP | 0x80))
+			else
 			{
-				ptrace(PTRACE_GETREGS, pid, NULL, &r);
-				sc = &syscalls_64[r.orig_rax];
-				if (is_entry)
-				{
-					if (sc->name)
-					{
-						printf("%s(", sc->name);
-						print_args(&r, sc);
-						printf(") = ");
-					}
-					fflush(stdout);
-				}
-				else
-				{
-					if ((long)r.rax == 0)
-						printf("0\n");
-					else
-						printf("0x%lx\n", (unsigned long)r.rax);
-				}
-				is_entry = !is_entry;
+				printf(((long)r.rax == 0) ? "0\n" : "0x%lx\n", (unsigned long)r.rax);
+				is_entry = 0;
 			}
 		}
 	}

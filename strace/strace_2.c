@@ -7,18 +7,6 @@
 #include "syscalls.h"
 
 /**
- * print_return - Prints the return value of a syscall
- * @rax: The rax register containing the return value
- */
-void print_return(unsigned long rax)
-{
-	if ((long)rax == 0)
-		printf("0\n");
-	else
-		printf("0x%lx\n", rax);
-}
-
-/**
  * main - Traces a command, printing syscall names and return values.
  * @argc: Argument count
  * @argv: Argument vector
@@ -30,14 +18,14 @@ int main(int argc, char **argv, char **envp)
 	pid_t pid;
 	int status;
 	struct user_regs_struct r;
-	int is_entry = 1;
+	int is_entry = 0;
 
 	if (argc < 2)
 	{
 		fprintf(stderr, "Usage: %s command [args...]\n", argv[0]);
 		return (1);
 	}
-
+	setbuf(stdout, NULL);
 	pid = fork();
 	if (pid == 0)
 	{
@@ -49,28 +37,34 @@ int main(int argc, char **argv, char **envp)
 	{
 		wait(&status);
 		ptrace(PTRACE_SETOPTIONS, pid, 0, PTRACE_O_TRACESYSGOOD);
+		printf("execve = 0\n");
+
 		while (1)
 		{
 			ptrace(PTRACE_SYSCALL, pid, NULL, NULL);
 			wait(&status);
 			if (WIFEXITED(status))
 			{
-				if (!is_entry) /* If we were expecting an exit return */
+				if (is_entry)
 					printf("?\n");
 				break;
 			}
 			if (WIFSTOPPED(status) && WSTOPSIG(status) == (SIGTRAP | 0x80))
 			{
 				ptrace(PTRACE_GETREGS, pid, NULL, &r);
-				if (is_entry)
+				if (!is_entry)
 				{
-					if (syscalls_64[r.orig_rax].name)
-						printf("%s = ", syscalls_64[r.orig_rax].name);
-					fflush(stdout); /* Ensure name prints before syscall blocking */
+					printf("%s = ", syscalls_64[r.orig_rax].name);
+					is_entry = 1;
 				}
 				else
-					print_return((unsigned long)r.rax);
-				is_entry = !is_entry;
+				{
+					if ((long)r.rax == 0)
+						printf("0\n");
+					else
+						printf("0x%lx\n", (unsigned long)r.rax);
+					is_entry = 0;
+				}
 			}
 		}
 	}

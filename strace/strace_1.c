@@ -4,7 +4,7 @@
 #include <sys/ptrace.h>
 #include <sys/wait.h>
 #include <sys/user.h>
-#include "syscalls.h" /* Your provided header */
+#include "syscalls.h"
 
 /**
  * main - Executes and traces a given command, printing syscall names.
@@ -26,6 +26,8 @@ int main(int argc, char **argv, char **envp)
 		return (1);
 	}
 
+	setbuf(stdout, NULL);
+
 	pid = fork();
 	if (pid == 0)
 	{
@@ -37,20 +39,24 @@ int main(int argc, char **argv, char **envp)
 	{
 		wait(&status);
 		ptrace(PTRACE_SETOPTIONS, pid, 0, PTRACE_O_TRACESYSGOOD);
+
+		ptrace(PTRACE_GETREGS, pid, NULL, &regs);
+		printf("%s\n", syscalls_64[regs.orig_rax].name);
+
 		while (1)
 		{
 			ptrace(PTRACE_SYSCALL, pid, NULL, NULL);
 			wait(&status);
+
 			if (WIFEXITED(status))
 				break;
+
 			if (WIFSTOPPED(status) && WSTOPSIG(status) == (SIGTRAP | 0x80))
 			{
-				ptrace(PTRACE_GETREGS, pid, NULL, &regs);
 				if (is_entry)
 				{
-					/* Look up the syscall name using orig_rax */
-					if (syscalls_64[regs.orig_rax].name)
-						printf("%s\n", syscalls_64[regs.orig_rax].name);
+					ptrace(PTRACE_GETREGS, pid, NULL, &regs);
+					printf("%s\n", syscalls_64[regs.orig_rax].name);
 				}
 				is_entry = !is_entry;
 			}
