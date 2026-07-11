@@ -1,16 +1,9 @@
 #include "multithreading.h"
-#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #define CLAMP(v, lo, hi) (((v) < (lo)) ? (lo) : ((v) > (hi) ? (hi) : (v)))
 
-/**
- * blur_pixel - Compute blurred colour of a single pixel
- * @portion:    Portion parameters
- * @x:          X coordinate
- * @y:          Y coordinate
- * @weight_sum: Precomputed kernel weight sum
- * @dest:       Pointer to store the resulting pixel
- */
 static void blur_pixel(blur_portion_t const *portion,
 		       size_t x, size_t y,
 		       float weight_sum,
@@ -52,18 +45,41 @@ void blur_portion(blur_portion_t const *portion)
 {
 	size_t i, j, ky, kx;
 	float weight_sum = 0.0f;
-	pixel_t dst;
+	pixel_t *temp_buf = NULL;
+	blur_portion_t local_portion = *portion;
+	img_t src_copy;
 
 	for (ky = 0; ky < portion->kernel->size; ky++)
 		for (kx = 0; kx < portion->kernel->size; kx++)
 			weight_sum += portion->kernel->matrix[ky][kx];
 
-	for (i = portion->y; i < portion->y + portion->h; i++)
+	if (portion->img->pixels == portion->img_blur->pixels)
 	{
-		for (j = portion->x; j < portion->x + portion->w; j++)
+		temp_buf = malloc(portion->w * portion->h * sizeof(pixel_t));
+		if (!temp_buf)
+			return;
+		for (i = 0; i < portion->h; i++)
+			memcpy(temp_buf + i * portion->w,
+			       portion->img->pixels +
+				       (portion->y + i) * portion->img->w + portion->x,
+			       portion->w * sizeof(pixel_t));
+		src_copy.w = portion->w;
+		src_copy.h = portion->h;
+		src_copy.pixels = temp_buf;
+		local_portion.img = &src_copy;
+		local_portion.x = 0;
+		local_portion.y = 0;
+	}
+
+	for (i = local_portion.y; i < local_portion.y + local_portion.h; i++)
+	{
+		for (j = local_portion.x; j < local_portion.x + local_portion.w; j++)
 		{
-			blur_pixel(portion, j, i, weight_sum, &dst);
+			pixel_t dst;
+			blur_pixel(&local_portion, j, i, weight_sum, &dst);
 			portion->img_blur->pixels[i * portion->img_blur->w + j] = dst;
 		}
 	}
+
+	free(temp_buf);
 }
