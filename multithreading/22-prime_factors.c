@@ -3,7 +3,7 @@
 #include "multithreading.h"
 
 /**
- * create_task - Creates a new task structure
+ * create_task - Creates a new task
  * @entry: Pointer to the entry function
  * @param: Parameter for the entry function
  *
@@ -20,12 +20,16 @@ task_t *create_task(task_entry_t entry, void *param)
 	task->param = param;
 	task->status = PENDING;
 	task->result = NULL;
-	pthread_mutex_init(&task->lock, NULL);
+	if (pthread_mutex_init(&task->lock, NULL) != 0)
+	{
+		free(task);
+		return (NULL);
+	}
 	return (task);
 }
 
 /**
- * destroy_task - Destroys a task and cleans up mutex
+ * destroy_task - Destroys a task
  * @task: Pointer to the task to destroy
  */
 void destroy_task(task_t *task)
@@ -38,7 +42,7 @@ void destroy_task(task_t *task)
 }
 
 /**
- * exec_tasks - Thread entry function to execute a list of tasks
+ * exec_tasks - Executes a list of tasks using a thread pool pattern
  * @tasks: Pointer to the list of tasks
  *
  * Return: NULL
@@ -47,14 +51,16 @@ void *exec_tasks(list_t const *tasks)
 {
 	node_t *node;
 	task_t *task;
-	int i = 0;
+	int i;
 
-	if (!tasks)
+	if (!tasks || !tasks->head)
 		return (NULL);
 
-	for (node = tasks->head; node != NULL; node = node->next)
+	for (node = tasks->head, i = 0; node != NULL; node = node->next, i++)
 	{
 		task = (task_t *)node->content;
+		if (!task)
+			continue;
 
 		pthread_mutex_lock(&task->lock);
 		if (task->status == PENDING)
@@ -66,8 +72,6 @@ void *exec_tasks(list_t const *tasks)
 			tprintf("[%02d] Success\n", i);
 		}
 		pthread_mutex_unlock(&task->lock);
-		i++;
 	}
-
 	return (NULL);
 }
