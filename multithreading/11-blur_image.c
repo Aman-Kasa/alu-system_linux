@@ -17,7 +17,7 @@ void blur_image(img_t *img_blur, img_t const *img, kernel_t const *kernel)
 	blur_portion_t portions[NUM_THREADS];
 	img_t src_copy;
 
-	/* Use a temporary copy to allow safe in‑place blur (img == img_blur) */
+	/* Work on a temporary copy to allow safe in‑place blur */
 	src_copy.w = img->w;
 	src_copy.h = img->h;
 	src_copy.pixels = malloc(nb_pixels * sizeof(pixel_t));
@@ -26,7 +26,6 @@ void blur_image(img_t *img_blur, img_t const *img, kernel_t const *kernel)
 	memcpy(src_copy.pixels, img->pixels, nb_pixels * sizeof(pixel_t));
 
 	strip_h = img->h / NUM_THREADS;
-
 	for (i = 0; i < NUM_THREADS; i++)
 	{
 		y_start = i * strip_h;

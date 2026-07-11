@@ -4,6 +4,14 @@
 
 #define CLAMP(v, lo, hi) (((v) < (lo)) ? (lo) : ((v) > (hi) ? (hi) : (v)))
 
+/**
+ * blur_pixel - Compute the blurred colour of a single pixel
+ * @portion:    Portion parameters
+ * @x:          X coordinate
+ * @y:          Y coordinate
+ * @weight_sum: Precomputed kernel weight sum
+ * @dest:       Pointer to store the resulting pixel
+ */
 static void blur_pixel(blur_portion_t const *portion,
 		       size_t x, size_t y,
 		       float weight_sum,
@@ -49,10 +57,12 @@ void blur_portion(blur_portion_t const *portion)
 	blur_portion_t local_portion = *portion;
 	img_t src_copy;
 
+	/* Compute kernel weight sum for normalisation */
 	for (ky = 0; ky < portion->kernel->size; ky++)
 		for (kx = 0; kx < portion->kernel->size; kx++)
 			weight_sum += portion->kernel->matrix[ky][kx];
 
+	/* Handle in‑place blur: work on a temporary copy of the source portion */
 	if (portion->img->pixels == portion->img_blur->pixels)
 	{
 		temp_buf = malloc(portion->w * portion->h * sizeof(pixel_t));
@@ -76,6 +86,7 @@ void blur_portion(blur_portion_t const *portion)
 		for (j = local_portion.x; j < local_portion.x + local_portion.w; j++)
 		{
 			pixel_t dst;
+
 			blur_pixel(&local_portion, j, i, weight_sum, &dst);
 			portion->img_blur->pixels[i * portion->img_blur->w + j] = dst;
 		}
