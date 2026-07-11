@@ -1,61 +1,50 @@
 #include "multithreading.h"
-#include "list.h"
 #include <stdlib.h>
-#include <stdio.h>
 
 /**
- * prime_factors - Factorise a number into a list of prime factors
- * @s: String representation of the number
+ * prime_factors - Factorizes a number into a list of prime factors
+ * @s: String representation of the number to factorize
  *
  * Return: Pointer to a list of unsigned long factors, or NULL on failure
  */
 list_t *prime_factors(char const *s)
 {
-	unsigned long n, factor;
+	unsigned long n, factor = 2, *p;
 	char *endptr;
 	list_t *list;
-	unsigned long *p;
+
+	if (!s)
+		return (NULL);
 
 	n = strtoul(s, &endptr, 10);
 	if (*endptr != '\0')
 		return (NULL);
 
-	list = malloc(sizeof(list_t));
+	/* calloc zeros out the struct, handling head/tail initialization */
+	list = calloc(1, sizeof(list_t));
 	if (!list)
 		return (NULL);
-	if (!list_init(list))
-	{
-		free(list);
-		return (NULL);
-	}
 
-	for (factor = 2; factor * factor <= n; factor++)
+	while (n >= 2)
 	{
-		while (n % factor == 0)
+		if (n % factor == 0)
 		{
 			p = malloc(sizeof(unsigned long));
 			if (!p)
-			{
-				list_destroy(list, free);
-				free(list);
 				return (NULL);
-			}
 			*p = factor;
 			list_add(list, p);
 			n /= factor;
 		}
-	}
-	if (n > 1)
-	{
-		p = malloc(sizeof(unsigned long));
-		if (!p)
+		else
 		{
-			list_destroy(list, free);
-			free(list);
-			return (NULL);
+			/* Step by 1 for even, step by 2 for odd primes */
+			factor += (factor == 2) ? 1 : 2;
+			
+			/* Skip unnecessary loops by jumping straight to the final prime */
+			if (factor * factor > n && n > 1)
+				factor = n;
 		}
-		*p = n;
-		list_add(list, p);
 	}
 
 	return (list);
