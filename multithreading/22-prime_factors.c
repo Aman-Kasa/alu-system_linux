@@ -3,7 +3,7 @@
 #include "multithreading.h"
 
 /**
- * create_task - Creates a new task
+ * create_task - Creates a new task structure
  * @entry: Pointer to the entry function
  * @param: Parameter for the entry function
  *
@@ -25,7 +25,7 @@ task_t *create_task(task_entry_t entry, void *param)
 }
 
 /**
- * destroy_task - Destroys a task
+ * destroy_task - Destroys a task and cleans up mutex
  * @task: Pointer to the task to destroy
  */
 void destroy_task(task_t *task)
@@ -38,8 +38,8 @@ void destroy_task(task_t *task)
 }
 
 /**
- * exec_tasks - Thread entry to execute a list of tasks
- * @tasks: List of tasks to be executed
+ * exec_tasks - Thread entry function to execute a list of tasks
+ * @tasks: Pointer to the list of tasks
  *
  * Return: NULL
  */
@@ -55,6 +55,7 @@ void *exec_tasks(list_t const *tasks)
 	for (node = tasks->head; node != NULL; node = node->next)
 	{
 		task = (task_t *)node->content;
+
 		pthread_mutex_lock(&task->lock);
 		if (task->status == PENDING)
 		{
@@ -67,5 +68,6 @@ void *exec_tasks(list_t const *tasks)
 		pthread_mutex_unlock(&task->lock);
 		i++;
 	}
+
 	return (NULL);
 }
