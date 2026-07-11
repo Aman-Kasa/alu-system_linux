@@ -17,6 +17,9 @@ typedef struct list_s
     size_t size;
 } list_t;
 
+/* ADD THIS LINE HERE */
+typedef void (*node_func_t)(void *);
+
 /* Your list function prototypes here... */
 
 #endif /* LIST_H */
