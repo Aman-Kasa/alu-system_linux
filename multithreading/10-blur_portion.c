@@ -9,10 +9,12 @@
  * @x:          X coordinate
  * @y:          Y coordinate
  * @weight_sum: Precomputed kernel weight sum
- * Return: Blurred pixel
+ * @dest:       Pointer to store the resulting pixel
  */
-static pixel_t blur_pixel(blur_portion_t const *portion, size_t x, size_t y,
-			   float weight_sum)
+static void blur_pixel(blur_portion_t const *portion,
+		       size_t x, size_t y,
+		       float weight_sum,
+		       pixel_t *dest)
 {
 	int half = (int)portion->kernel->size / 2;
 	float kr = 0, kg = 0, kb = 0;
@@ -37,11 +39,9 @@ static pixel_t blur_pixel(blur_portion_t const *portion, size_t x, size_t y,
 	kr /= weight_sum;
 	kg /= weight_sum;
 	kb /= weight_sum;
-	return ((pixel_t){
-		.r = (uint8_t)CLAMP(kr, 0, 255),
-		.g = (uint8_t)CLAMP(kg, 0, 255),
-		.b = (uint8_t)CLAMP(kb, 0, 255)
-	});
+	dest->r = (uint8_t)CLAMP(kr, 0, 255);
+	dest->g = (uint8_t)CLAMP(kg, 0, 255);
+	dest->b = (uint8_t)CLAMP(kb, 0, 255);
 }
 
 /**
@@ -52,13 +52,18 @@ void blur_portion(blur_portion_t const *portion)
 {
 	size_t i, j, ky, kx;
 	float weight_sum = 0.0f;
+	pixel_t dst;
 
 	for (ky = 0; ky < portion->kernel->size; ky++)
 		for (kx = 0; kx < portion->kernel->size; kx++)
 			weight_sum += portion->kernel->matrix[ky][kx];
 
 	for (i = portion->y; i < portion->y + portion->h; i++)
+	{
 		for (j = portion->x; j < portion->x + portion->w; j++)
-			portion->img_blur->pixels[i * portion->img_blur->w + j] =
-				blur_pixel(portion, j, i, weight_sum);
+		{
+			blur_pixel(portion, j, i, weight_sum, &dst);
+			portion->img_blur->pixels[i * portion->img_blur->w + j] = dst;
+		}
+	}
 }
