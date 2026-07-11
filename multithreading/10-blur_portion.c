@@ -7,6 +7,7 @@
 /**
  * kernel_weight_sum - Compute the sum of all elements in the kernel matrix
  * @kernel: Pointer to the kernel structure
+ *
  * Return: Sum of matrix values
  */
 static float kernel_weight_sum(kernel_t const *kernel)
@@ -22,9 +23,9 @@ static float kernel_weight_sum(kernel_t const *kernel)
 
 /**
  * blur_pixel - Compute the blurred colour of a single pixel
- * @portion:    Portion parameters
- * @x:          X coordinate
- * @y:          Y coordinate
+ * @portion:    Portion parameters (source is always a temp copy)
+ * @x:          X coordinate in the portion
+ * @y:          Y coordinate in the portion
  * @weight_sum: Precomputed kernel weight sum
  * @dest:       Pointer to store the resulting pixel
  */
@@ -62,67 +63,51 @@ static void blur_pixel(blur_portion_t const *portion,
 }
 
 /**
- * setup_inplace_copy - Prepare a temporary copy of the source portion
- * @local:    Local portion structure to modify (will point to the copy)
- * @portion:  Original portion (where src and dest pixel arrays overlap)
- * @copy_dest: Pre‑allocated img_t structure to hold the copy metadata
- * Return: Pointer to the allocated pixel buffer, or NULL on failure
- */
-static pixel_t *setup_inplace_copy(blur_portion_t *local,
-				   blur_portion_t const *portion,
-				   img_t *copy_dest)
-{
-	size_t i;
-	pixel_t *buf;
-
-	buf = malloc(portion->w * portion->h * sizeof(pixel_t));
-	if (!buf)
-		return (NULL);
-
-	for (i = 0; i < portion->h; i++)
-		memcpy(buf + i * portion->w,
-		       portion->img->pixels +
-			       (portion->y + i) * portion->img->w + portion->x,
-		       portion->w * sizeof(pixel_t));
-
-	copy_dest->w = portion->w;
-	copy_dest->h = portion->h;
-	copy_dest->pixels = buf;
-	local->img = copy_dest;
-	local->x = 0;
-	local->y = 0;
-
-	return (buf);
-}
-
-/**
  * blur_portion - Blur a rectangular portion of an image using a kernel
  * @portion: Parameters describing the image portion and kernel
+ *
+ * Always works from a temporary copy of the source portion, so overlapping
+ * source and destination buffers are handled safely.
  */
 void blur_portion(blur_portion_t const *portion)
 {
-	blur_portion_t local = *portion;
 	float wsum = kernel_weight_sum(portion->kernel);
-	pixel_t *temp_buf = NULL;
+	size_t i, j, row;
+	pixel_t *src_buf, *dst;
+	blur_portion_t safe_portion;
 	img_t src_copy;
-	size_t i, j;
 
-	if (portion->img->pixels == portion->img_blur->pixels)
+	/* Allocate temporary copy of the source portion */
+	src_buf = malloc(portion->w * portion->h * sizeof(pixel_t));
+	if (!src_buf)
+		return;
+
+	/* Copy the source pixels into the temporary buffer */
+	for (row = 0; row < portion->h; row++)
+		memcpy(src_buf + row * portion->w,
+		       portion->img->pixels +
+			       (portion->y + row) * portion->img->w + portion->x,
+		       portion->w * sizeof(pixel_t));
+
+	/* Set up a safe portion structure pointing to the copy */
+	src_copy.w = portion->w;
+	src_copy.h = portion->h;
+	src_copy.pixels = src_buf;
+	safe_portion.img = &src_copy;
+	safe_portion.kernel = portion->kernel;
+	safe_portion.x = 0;
+	safe_portion.y = 0;
+	safe_portion.w = portion->w;
+	safe_portion.h = portion->h;
+
+	/* Blur from the copy into the destination */
+	for (i = 0; i < safe_portion.h; i++)
 	{
-		temp_buf = setup_inplace_copy(&local, portion, &src_copy);
-		if (!temp_buf)
-			return;
+		dst = portion->img_blur->pixels +
+		      (portion->y + i) * portion->img_blur->w + portion->x;
+		for (j = 0; j < safe_portion.w; j++)
+			blur_pixel(&safe_portion, j, i, wsum, &dst[j]);
 	}
 
-	for (i = local.y; i < local.y + local.h; i++)
-	{
-		for (j = local.x; j < local.x + local.w; j++)
-		{
-			pixel_t dst;
-
-			blur_pixel(&local, j, i, wsum, &dst);
-			portion->img_blur->pixels[i * portion->img_blur->w + j] = dst;
-		}
-	}
-	free(temp_buf);
+	free(src_buf);
 }
