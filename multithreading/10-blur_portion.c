@@ -7,7 +7,7 @@
 void blur_portion(blur_portion_t const *portion)
 {
 	size_t x, y, kx, ky, idx;
-	ssize_t px, py, radius;
+	long px, py, radius; /* Changed from ssize_t to standard long */
 	float weight, weight_sum, r, g, b;
 
 	if (!portion || !portion->img || !portion->img_blur || !portion->kernel)
@@ -29,12 +29,12 @@ void blur_portion(blur_portion_t const *portion)
 				for (kx = 0; kx < portion->kernel->size; kx++)
 				{
 					/* Calculate absolute coordinates in the image */
-					px = (ssize_t)x + (ssize_t)kx - radius;
-					py = (ssize_t)y + (ssize_t)ky - radius;
+					px = (long)x + (long)kx - radius;
+					py = (long)y + (long)ky - radius;
 
-					/* Only apply weight if the neighbor is inside image boundaries */
-					if (px >= 0 && px < (ssize_t)portion->img->w &&
-					    py >= 0 && py < (ssize_t)portion->img->h)
+					/* Only apply weight if neighbor is inside image boundaries */
+					if (px >= 0 && px < (long)portion->img->w &&
+					    py >= 0 && py < (long)portion->img->h)
 					{
 						weight = portion->kernel->matrix[ky][kx];
 						idx = py * portion->img->w + px;
