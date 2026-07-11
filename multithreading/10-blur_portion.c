@@ -5,6 +5,23 @@
 #define CLAMP(v, lo, hi) (((v) < (lo)) ? (lo) : ((v) > (hi) ? (hi) : (v)))
 
 /**
+ * kernel_weight_sum - Compute the sum of all elements in the kernel matrix
+ * @kernel: Pointer to the kernel structure
+ *
+ * Return: Sum of matrix values
+ */
+static float kernel_weight_sum(kernel_t const *kernel)
+{
+	float sum = 0;
+	size_t ky, kx;
+
+	for (ky = 0; ky < kernel->size; ky++)
+		for (kx = 0; kx < kernel->size; kx++)
+			sum += kernel->matrix[ky][kx];
+	return (sum);
+}
+
+/**
  * blur_pixel - Compute the blurred colour of a single pixel
  * @portion:    Portion parameters
  * @x:          X coordinate
@@ -46,51 +63,59 @@ static void blur_pixel(blur_portion_t const *portion,
 }
 
 /**
+ * setup_inplace_copy - Prepare a temporary copy for in‑place blur
+ * @local:   Local portion structure to modify
+ * @portion: Original portion (src == dest)
+ *
+ * Return: 0 on success, -1 if malloc fails
+ */
+static int setup_inplace_copy(blur_portion_t *local,
+			      blur_portion_t const *portion)
+{
+	size_t i;
+	pixel_t *buf;
+
+	buf = malloc(portion->w * portion->h * sizeof(pixel_t));
+	if (!buf)
+		return (-1);
+	for (i = 0; i < portion->h; i++)
+		memcpy(buf + i * portion->w,
+		       portion->img->pixels +
+			       (portion->y + i) * portion->img->w + portion->x,
+		       portion->w * sizeof(pixel_t));
+	local->img = &(img_t){portion->w, portion->h, buf};
+	local->x = 0;
+	local->y = 0;
+	return (0);
+}
+
+/**
  * blur_portion - Blur a rectangular portion of an image using a kernel
  * @portion: Parameters describing the image portion and kernel
  */
 void blur_portion(blur_portion_t const *portion)
 {
-	size_t i, j, ky, kx;
-	float weight_sum = 0.0f;
+	blur_portion_t local = *portion;
+	float wsum = kernel_weight_sum(portion->kernel);
+	size_t i, j;
 	pixel_t *temp_buf = NULL;
-	blur_portion_t local_portion = *portion;
-	img_t src_copy;
 
-	/* Compute kernel weight sum for normalisation */
-	for (ky = 0; ky < portion->kernel->size; ky++)
-		for (kx = 0; kx < portion->kernel->size; kx++)
-			weight_sum += portion->kernel->matrix[ky][kx];
-
-	/* Handle in‑place blur: work on a temporary copy of the source portion */
 	if (portion->img->pixels == portion->img_blur->pixels)
 	{
-		temp_buf = malloc(portion->w * portion->h * sizeof(pixel_t));
-		if (!temp_buf)
+		if (setup_inplace_copy(&local, portion) == -1)
 			return;
-		for (i = 0; i < portion->h; i++)
-			memcpy(temp_buf + i * portion->w,
-			       portion->img->pixels +
-				       (portion->y + i) * portion->img->w + portion->x,
-			       portion->w * sizeof(pixel_t));
-		src_copy.w = portion->w;
-		src_copy.h = portion->h;
-		src_copy.pixels = temp_buf;
-		local_portion.img = &src_copy;
-		local_portion.x = 0;
-		local_portion.y = 0;
+		temp_buf = local.img->pixels;
 	}
 
-	for (i = local_portion.y; i < local_portion.y + local_portion.h; i++)
+	for (i = local.y; i < local.y + local.h; i++)
 	{
-		for (j = local_portion.x; j < local_portion.x + local_portion.w; j++)
+		for (j = local.x; j < local.x + local.w; j++)
 		{
 			pixel_t dst;
 
-			blur_pixel(&local_portion, j, i, weight_sum, &dst);
+			blur_pixel(&local, j, i, wsum, &dst);
 			portion->img_blur->pixels[i * portion->img_blur->w + j] = dst;
 		}
 	}
-
 	free(temp_buf);
 }
