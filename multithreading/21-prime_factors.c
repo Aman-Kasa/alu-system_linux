@@ -40,7 +40,7 @@ list_t *prime_factors(char const *s)
 		{
 			/* Step by 1 for even, step by 2 for odd primes */
 			factor += (factor == 2) ? 1 : 2;
-			
+
 			/* Skip unnecessary loops by jumping straight to the final prime */
 			if (factor * factor > n && n > 1)
 				factor = n;
