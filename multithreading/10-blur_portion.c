@@ -7,7 +7,6 @@
 /**
  * kernel_weight_sum - Compute the sum of all elements in the kernel matrix
  * @kernel: Pointer to the kernel structure
- *
  * Return: Sum of matrix values
  */
 static float kernel_weight_sum(kernel_t const *kernel)
@@ -63,30 +62,37 @@ static void blur_pixel(blur_portion_t const *portion,
 }
 
 /**
- * setup_inplace_copy - Prepare a temporary copy for in‑place blur
- * @local:   Local portion structure to modify
- * @portion: Original portion (src == dest)
- *
- * Return: 0 on success, -1 if malloc fails
+ * setup_inplace_copy - Prepare a temporary copy of the source portion
+ * @local:    Local portion structure to modify (will point to the copy)
+ * @portion:  Original portion (where src and dest pixel arrays overlap)
+ * @copy_dest: Pre‑allocated img_t structure to hold the copy metadata
+ * Return: Pointer to the allocated pixel buffer, or NULL on failure
  */
-static int setup_inplace_copy(blur_portion_t *local,
-			      blur_portion_t const *portion)
+static pixel_t *setup_inplace_copy(blur_portion_t *local,
+				   blur_portion_t const *portion,
+				   img_t *copy_dest)
 {
 	size_t i;
 	pixel_t *buf;
 
 	buf = malloc(portion->w * portion->h * sizeof(pixel_t));
 	if (!buf)
-		return (-1);
+		return (NULL);
+
 	for (i = 0; i < portion->h; i++)
 		memcpy(buf + i * portion->w,
 		       portion->img->pixels +
 			       (portion->y + i) * portion->img->w + portion->x,
 		       portion->w * sizeof(pixel_t));
-	local->img = &(img_t){portion->w, portion->h, buf};
+
+	copy_dest->w = portion->w;
+	copy_dest->h = portion->h;
+	copy_dest->pixels = buf;
+	local->img = copy_dest;
 	local->x = 0;
 	local->y = 0;
-	return (0);
+
+	return (buf);
 }
 
 /**
@@ -97,14 +103,15 @@ void blur_portion(blur_portion_t const *portion)
 {
 	blur_portion_t local = *portion;
 	float wsum = kernel_weight_sum(portion->kernel);
-	size_t i, j;
 	pixel_t *temp_buf = NULL;
+	img_t src_copy;
+	size_t i, j;
 
 	if (portion->img->pixels == portion->img_blur->pixels)
 	{
-		if (setup_inplace_copy(&local, portion) == -1)
+		temp_buf = setup_inplace_copy(&local, portion, &src_copy);
+		if (!temp_buf)
 			return;
-		temp_buf = local.img->pixels;
 	}
 
 	for (i = local.y; i < local.y + local.h; i++)
