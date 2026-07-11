@@ -98,6 +98,7 @@ node_t *list_add(list_t *list, void *content);
 void list_destroy(list_t *list, void (*free_func)(void *));
 void list_each(list_t *list, void (*func)(void *));
 
+typedef void (*node_func_t)(void *);
 /* Task pool structures (task 6) ---------------------------------------- */
 typedef void *(*task_entry_t)(void *);
 
