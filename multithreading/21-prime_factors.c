@@ -87,7 +87,8 @@ static unsigned long powmod(unsigned long base, unsigned long exp,
 	}
 	return (result);
 }
-c/**
+
+/**
  * miller_test - runs one round of the Miller-Rabin primality test
  * @n: number being tested
  * @a: witness value
@@ -144,7 +145,8 @@ static int is_prime(unsigned long n)
 			return (0);
 	return (1);
 }
-c/**
+
+/**
  * pollard_g - the pseudo-random function used by Pollard's rho
  * @x: current value
  * @c: constant offset for this attempt
@@ -207,7 +209,8 @@ static unsigned long pollard_rho(unsigned long n)
 			return (d);
 	}
 }
-c/**
+
+/**
  * collect_factors - recursively finds all prime factors of n
  * @n: number to factorize
  * @arr: pointer to the dynamic array of factors found so far
