@@ -51,6 +51,49 @@ static int add_factor(list_t *list, unsigned long n)
 }
 
 /**
+ * extract_factor_2 - strips all factors of 2 from n, adding them to list
+ * @list: list to append factors to
+ * @n: pointer to the number being factorized (updated in place)
+ *
+ * Return: 1 on success, 0 on failure
+ */
+static int extract_factor_2(list_t *list, unsigned long *n)
+{
+	while (*n % 2 == 0)
+	{
+		if (!add_factor(list, 2))
+			return (0);
+		*n /= 2;
+	}
+	return (1);
+}
+
+/**
+ * extract_odd_factors - strips all odd prime factors from n
+ * @list: list to append factors to
+ * @n: pointer to the number being factorized (updated in place)
+ *
+ * Return: 1 on success, 0 on failure
+ */
+static int extract_odd_factors(list_t *list, unsigned long *n)
+{
+	unsigned long i, lim;
+
+	lim = int_sqrt(*n);
+	for (i = 3; i <= lim; i += 2)
+	{
+		while (*n % i == 0)
+		{
+			if (!add_factor(list, i))
+				return (0);
+			*n /= i;
+			lim = int_sqrt(*n);
+		}
+	}
+	return (1);
+}
+
+/**
  * prime_factors - computes the prime factors of a number given as a string
  * @s: string representation of the number to factorize
  *
@@ -59,7 +102,7 @@ static int add_factor(list_t *list, unsigned long n)
 list_t *prime_factors(char const *s)
 {
 	list_t *list;
-	unsigned long n, i, lim;
+	unsigned long n;
 
 	if (!s)
 		return (NULL);
@@ -71,31 +114,11 @@ list_t *prime_factors(char const *s)
 
 	n = strtoul(s, NULL, 10);
 
-	while (n % 2 == 0)
+	if (!extract_factor_2(list, &n) || !extract_odd_factors(list, &n))
 	{
-		if (!add_factor(list, 2))
-		{
-			list_destroy(list, free);
-			free(list);
-			return (NULL);
-		}
-		n /= 2;
-	}
-
-	lim = int_sqrt(n);
-	for (i = 3; i <= lim; i += 2)
-	{
-		while (n % i == 0)
-		{
-			if (!add_factor(list, i))
-			{
-				list_destroy(list, free);
-				free(list);
-				return (NULL);
-			}
-			n /= i;
-			lim = int_sqrt(n);
-		}
+		list_destroy(list, free);
+		free(list);
+		return (NULL);
 	}
 
 	if (n > 1 && !add_factor(list, n))
