@@ -1,69 +1,56 @@
+#include <pthread.h>
+#include <stdlib.h>
 #include "multithreading.h"
 
-
-
 /**
-* create_task - func
-* @entry: task_entrey_t
-* @param: void *
-* Return: task_t *
-*/
-task_t *create_task(task_entry_t entry, void *param)
-{
-	task_t *task = NULL;
-
-	task = malloc(sizeof(task_t));
-	memset(task, 0, sizeof(task_t));
-	task->entry = entry;
-	task->param = param;
-	task->status = PENDING;
-	task->result = NULL;
-	return (task);
-}
-
-
-/**
-* destroy_task - func
-* @task: task_t
-*/
-void destroy_task(task_t *task)
-{
-	list_destroy(task->result, free);
-	free(task->result);
-	free(task);
-}
-
-
-/**
-* exec_tasks - func
-* @tasks: list_t const *
-* Return: void *
-*/
+ * exec_tasks - Executes all tasks in a list until all are completed
+ * @tasks: Pointer to the list of tasks
+ *
+ * Return: NULL
+ */
 void *exec_tasks(list_t const *tasks)
 {
-	node_t *node = NULL;
-	task_t *task = NULL;
-	size_t size = 0, i = 0;
+	node_t *node;
+	task_t *task;
+	int i, all_done;
 
-	if (!tasks)
+	if (!tasks || !tasks->head)
 		return (NULL);
-	node = tasks->head;
-	size = tasks->size;
-	while (node && (i < size))
+
+	/* Loop until all tasks are marked as SUCCESS */
+	while (1)
 	{
-		task = node->content;
-		if (task->status == PENDING)
-		{
+		all_done = 1;
+		i = 0;
+		node = tasks->head;
+
+		do {
+			task = (task_t *)node->content;
 			pthread_mutex_lock(&task->lock);
-			task->status = STARTED;
-			tprintf("[%02d] Started\n", i);
-			task->result = task->entry(task->param);
-			tprintf("[%02d] Success\n", i);
-			task->status = SUCCESS;
+
+			if (task->status == PENDING)
+			{
+				task->status = STARTED;
+				tprintf("[%02d] Started\n", i);
+				task->result = task->entry(task->param);
+				task->status = SUCCESS;
+				tprintf("[%02d] Success\n", i);
+				all_done = 0; /* Work was done, keep checking */
+			}
+			else if (task->status == STARTED)
+			{
+				all_done = 0; /* Someone else is working, keep checking */
+			}
+
 			pthread_mutex_unlock(&task->lock);
-		}
-		i++;
-		node = node->next;
+			node = node->next;
+			i++;
+		} while (node != tasks->head);
+
+		/* If we went through all tasks and none were PENDING or STARTED, we are done */
+		if (all_done)
+			break;
 	}
+
 	return (NULL);
 }
