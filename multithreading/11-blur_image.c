@@ -1,8 +1,22 @@
 #include "multithreading.h"
 #include <stdlib.h>
 #include <string.h>
+#include <pthread.h>
 
 #define NUM_THREADS 8
+
+/**
+ * blur_portion_wrapper - Wrapper to match pthread_create signature
+ * @arg: Pointer to a blur_portion_t structure
+ *
+ * Return: NULL
+ */
+static void *blur_portion_wrapper(void *arg)
+{
+	blur_portion_t *portion = (blur_portion_t *)arg;
+	blur_portion(portion);
+	return (NULL);
+}
 
 /**
  * blur_image - Blur an entire image using multiple threads
@@ -37,8 +51,7 @@ void blur_image(img_t *img_blur, img_t const *img, kernel_t const *kernel)
 		portions[i].h = (i == NUM_THREADS - 1) ?
 			(img->h - y_start) : strip_h;
 		portions[i].kernel = kernel;
-		pthread_create(&threads[i], NULL,
-			(void *(*)(void *))blur_portion, &portions[i]);
+		pthread_create(&threads[i], NULL, blur_portion_wrapper, &portions[i]);
 	}
 	for (i = 0; i < NUM_THREADS; i++)
 		pthread_join(threads[i], NULL);
