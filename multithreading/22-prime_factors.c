@@ -1,4 +1,5 @@
 #include <pthread.h>
+#include <sched.h>
 #include <stdlib.h>
 #include "multithreading.h"
 
@@ -78,11 +79,17 @@ void *exec_tasks(list_t const *tasks)
 
 				pthread_mutex_lock(&task->lock);
 				task->status = SUCCESS;
+				pthread_mutex_unlock(&task->lock);
 				pending = 1;
 			}
 			else if (task->status == STARTED)
+			{
+				pthread_mutex_unlock(&task->lock);
 				pending = 1;
-			pthread_mutex_unlock(&task->lock);
+				sched_yield();
+			}
+			else
+				pthread_mutex_unlock(&task->lock);
 		}
 	} while (pending);
 
