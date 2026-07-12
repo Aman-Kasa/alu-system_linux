@@ -3,29 +3,56 @@
 #include <string.h>
 
 /**
- * lim_binary - finds the integer square root of a number
- * @n: the number to compute the square root of
+ * int_sqrt - computes the integer square root of a number without overflow
+ * @n: number to compute the square root of
  *
- * Return: the integer square root of n
+ * Return: largest integer whose square is <= n
  */
-static unsigned long lim_binary(unsigned long n)
+static unsigned long int_sqrt(unsigned long n)
 {
 	unsigned long low = 0, high = n, mid;
 
-	while (low <= high)
+	if (n < 2)
+		return (n);
+
+	while (low < high)
 	{
-		mid = (low + high) / 2;
-		if (mid * mid <= n)
-			low = mid + 1;
+		mid = low + (high - low) / 2 + 1;
+		if (mid <= n / mid)
+			low = mid;
 		else
 			high = mid - 1;
 	}
-	return (high);
+	return (low);
+}
+
+/**
+ * add_factor - allocates and appends a factor to a list
+ * @list: list to append to
+ * @n: factor value to add
+ *
+ * Return: 1 on success, 0 on failure
+ */
+static int add_factor(list_t *list, unsigned long n)
+{
+	unsigned long *factor;
+
+	factor = malloc(sizeof(*factor));
+	if (!factor)
+		return (0);
+
+	*factor = n;
+	if (list_add(list, factor) == NULL)
+	{
+		free(factor);
+		return (0);
+	}
+	return (1);
 }
 
 /**
  * prime_factors - computes the prime factors of a number given as a string
- * @s: string representing the number to factorize
+ * @s: string representation of the number to factorize
  *
  * Return: pointer to a list_t containing the prime factors, or NULL on failure
  */
@@ -44,53 +71,38 @@ list_t *prime_factors(char const *s)
 
 	n = strtoul(s, NULL, 10);
 
-	/* handle factor 2 separately to optimize */
 	while (n % 2 == 0)
 	{
-		unsigned long *factor = malloc(sizeof(*factor));
-
-		if (!factor || list_add(list, factor) == NULL)
+		if (!add_factor(list, 2))
 		{
 			list_destroy(list, free);
 			free(list);
 			return (NULL);
 		}
-		*factor = 2;
 		n /= 2;
 	}
 
-	/* check odd factors up to sqrt(n) */
-	lim = lim_binary(n);
+	lim = int_sqrt(n);
 	for (i = 3; i <= lim; i += 2)
 	{
 		while (n % i == 0)
 		{
-			unsigned long *factor = malloc(sizeof(*factor));
-
-			if (!factor || list_add(list, factor) == NULL)
+			if (!add_factor(list, i))
 			{
 				list_destroy(list, free);
 				free(list);
 				return (NULL);
 			}
-			*factor = i;
 			n /= i;
-			lim = lim_binary(n);
+			lim = int_sqrt(n);
 		}
 	}
 
-	/* if n is still greater than 1, it is a prime factor */
-	if (n > 1)
+	if (n > 1 && !add_factor(list, n))
 	{
-		unsigned long *factor = malloc(sizeof(*factor));
-
-		if (!factor || list_add(list, factor) == NULL)
-		{
-			list_destroy(list, free);
-			free(list);
-			return (NULL);
-		}
-		*factor = n;
+		list_destroy(list, free);
+		free(list);
+		return (NULL);
 	}
 
 	return (list);
