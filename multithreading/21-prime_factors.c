@@ -1,51 +1,72 @@
 #include "multithreading.h"
-#include <stdlib.h>
+
+
 
 /**
- * prime_factors - Factorizes a number into a list of prime factors
- * @s: String representation of the number to factorize
- *
- * Return: Pointer to a list of unsigned long factors, or NULL on failure
- */
+* prime_factors - func
+* @s: char const *
+* Return: lsit_t *
+*/
 list_t *prime_factors(char const *s)
 {
-	unsigned long n, factor = 2, *p;
-	char *endptr;
-	list_t *list;
+	unsigned long int n = 0, lim = 0, i = 2, *p = NULL;
+	list_t *list = NULL;
 
-	if (!s)
-		return (NULL);
-
-	n = strtoul(s, &endptr, 10);
-	if (*endptr != '\0')
-		return (NULL);
-
-	/* calloc zeros out the struct, handling head/tail initialization */
-	list = calloc(1, sizeof(list_t));
-	if (!list)
-		return (NULL);
-
-	while (n >= 2)
+	list = malloc(sizeof(list_t));
+	list_init(list);
+	n = strtoul(s, NULL, 10);
+	if (n < 2)
 	{
-		if (n % factor == 0)
+		p = malloc(sizeof(unsigned long int));
+		*p = n;
+		list_add(list, (void *)p);
+	}
+	else
+	{
+		lim = lim_binary(n);
+		while (i <= lim)
 		{
-			p = malloc(sizeof(unsigned long));
-			if (!p)
-				return (NULL);
-			*p = factor;
-			list_add(list, p);
-			n /= factor;
+			if (!(n % i))
+			{
+				p = malloc(sizeof(unsigned long int));
+				*p = i;
+				list_add(list, (void *)p);
+				n /= i;
+				lim = lim_binary(n);
+			}
+			else
+				i += (i == 2) ? 1 : 2;
 		}
-		else
+		if (n > 1)
 		{
-			/* Step by 1 for even, step by 2 for odd primes */
-			factor += (factor == 2) ? 1 : 2;
-
-			/* Skip unnecessary loops by jumping straight to the final prime */
-			if (factor * factor > n && n > 1)
-				factor = n;
+			p = malloc(sizeof(unsigned long int));
+			*p = n;
+			list_add(list, (void *)p);
 		}
 	}
-
 	return (list);
+}
+
+
+/**
+* lim_binary - func
+* @n: unsigned long int
+* Return: unsigned long int
+*/
+unsigned long int lim_binary(unsigned long int n)
+{
+	unsigned long int r = 0, end = n / 2, begin = 2, mid = (end + begin) / 2;
+
+	while (begin < end)
+	{
+		r = mid * mid;
+		if (r < n)
+			begin = mid;
+		else if (r > n)
+			end = mid - 1;
+		else
+			break;
+		mid = (end + begin) / 2 + 1;
+	}
+	return (mid);
 }
