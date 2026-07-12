@@ -1,93 +1,56 @@
-#include "multithreading.h"
+#include <pthread.h>
 #include <stdlib.h>
-#include <string.h>
+#include "multithreading.h"
 
 /**
- * create_task - creates a task structure
- * @entry: pointer to the task entry function
- * @param: parameter to pass to the entry function
- * Return: pointer to the created task, or NULL on failure
- */
-task_t *create_task(task_entry_t entry, void *param)
-{
-	task_t *task;
-
-	task = malloc(sizeof(*task));
-	if (!task)
-		return (NULL);
-	memset(task, 0, sizeof(*task));
-	task->entry = entry;
-	task->param = param;
-	task->status = PENDING;
-	pthread_mutex_init(&task->lock, NULL);
-	return (task);
-}
-
-/**
- * destroy_task - destroys a task and its result
- * @task: pointer to the task to destroy
- */
-void destroy_task(task_t *task)
-{
-	if (!task)
-		return;
-	if (task->result)
-	{
-		list_destroy((list_t *)task->result, free);
-		free(task->result);
-	}
-	pthread_mutex_destroy(&task->lock);
-	free(task);
-}
-
-/**
- * exec_tasks - thread entry function that executes a list of tasks
- * @tasks: pointer to the list of tasks (list_t *)
+ * exec_tasks - Executes all tasks in a list until all are completed
+ * @tasks: Pointer to the list of tasks
+ *
  * Return: NULL
  */
 void *exec_tasks(list_t const *tasks)
 {
 	node_t *node;
-	size_t i = 0;
+	task_t *task;
+	int i, all_done;
 
-	if (!tasks)
+	if (!tasks || !tasks->head)
 		return (NULL);
 
-	node = tasks->head;
-	while (node && i < tasks->size)
+	/* Loop until all tasks are marked as SUCCESS */
+	while (1)
 	{
-		task_t *task = (task_t *)node->content;
+		all_done = 1;
+		i = 0;
+		node = tasks->head;
 
-		/* lock before checking status to avoid race */
-		pthread_mutex_lock(&task->lock);
-		if (task->status == PENDING)
-		{
-			task->status = STARTED;
-			pthread_mutex_unlock(&task->lock);
-
-			tprintf("[%lu] [%02lu] Started\n", pthread_self(), i);
-
-			task->result = task->entry(task->param);
-
+		do {
+			task = (task_t *)node->content;
 			pthread_mutex_lock(&task->lock);
-			if (task->result)
+
+			if (task->status == PENDING)
 			{
+				task->status = STARTED;
+				tprintf("[%02d] Started\n", i);
+				task->result = task->entry(task->param);
 				task->status = SUCCESS;
-				tprintf("[%lu] [%02lu] Success\n", pthread_self(), i);
+				tprintf("[%02d] Success\n", i);
+				all_done = 0; /* Work was done, keep checking */
 			}
-			else
+			else if (task->status == STARTED)
 			{
-				task->status = FAILURE;
-				tprintf("[%lu] [%02lu] Failure\n", pthread_self(), i);
+				all_done = 0; /* Someone else is working, keep checking */
 			}
+
 			pthread_mutex_unlock(&task->lock);
-		}
-		else
-		{
-			pthread_mutex_unlock(&task->lock);
-		}
-		i++;
-		node = node->next;
+			node = node->next;
+			i++;
+		} while (node != tasks->head);
+
+		/* If we went through all tasks and none were PENDING or STARTED, we are done */
+		if (all_done)
+			break;
 	}
+
 	return (NULL);
 }
