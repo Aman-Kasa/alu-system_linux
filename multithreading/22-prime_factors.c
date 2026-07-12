@@ -32,13 +32,21 @@ task_t *create_task(task_entry_t entry, void *param)
 }
 
 /**
- * destroy_task - destroys a task and frees its memory
+ * destroy_task - destroys a task and frees its memory, including
+ * any result list left behind by the task's entry function
  * @task: pointer to the task to destroy
  */
 void destroy_task(task_t *task)
 {
 	if (!task)
 		return;
+
+	if (task->result)
+	{
+		list_destroy((list_t *)task->result, free);
+		free(task->result);
+	}
+
 	pthread_mutex_destroy(&task->lock);
 	free(task);
 }
