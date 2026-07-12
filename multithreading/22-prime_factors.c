@@ -1,4 +1,4 @@
-#include <pthread.h>
+c#include <pthread.h>
 #include <sched.h>
 #include <stdlib.h>
 #include "multithreading.h"
@@ -28,7 +28,6 @@ task_t *create_task(task_entry_t entry, void *param)
 		free(task);
 		return (NULL);
 	}
-
 	return (task);
 }
 
@@ -40,9 +39,43 @@ void destroy_task(task_t *task)
 {
 	if (!task)
 		return;
-
 	pthread_mutex_destroy(&task->lock);
 	free(task);
+}
+
+/**
+ * try_run_task - attempts to claim and run a single task
+ * @task: task to attempt
+ * @index: index of the task, used for logging
+ *
+ * Return: 1 if this task is still in progress/was just run, 0 if it
+ * was already finished before this call
+ */
+static int try_run_task(task_t *task, int index)
+{
+	pthread_mutex_lock(&task->lock);
+	if (task->status == PENDING)
+	{
+		task->status = STARTED;
+		pthread_mutex_unlock(&task->lock);
+
+		tprintf("[%02d] Started\n", index);
+		task->result = task->entry(task->param);
+		tprintf("[%02d] Success\n", index);
+
+		pthread_mutex_lock(&task->lock);
+		task->status = SUCCESS;
+		pthread_mutex_unlock(&task->lock);
+		return (1);
+	}
+	if (task->status == STARTED)
+	{
+		pthread_mutex_unlock(&task->lock);
+		sched_yield();
+		return (1);
+	}
+	pthread_mutex_unlock(&task->lock);
+	return (0);
 }
 
 /**
@@ -54,7 +87,6 @@ void destroy_task(task_t *task)
 void *exec_tasks(list_t const *tasks)
 {
 	node_t *node;
-	task_t *task;
 	int index, pending;
 
 	if (!tasks)
@@ -64,33 +96,7 @@ void *exec_tasks(list_t const *tasks)
 		pending = 0;
 		index = 0;
 		for (node = tasks->head; node; node = node->next, index++)
-		{
-			task = (task_t *)node->content;
-
-			pthread_mutex_lock(&task->lock);
-			if (task->status == PENDING)
-			{
-				task->status = STARTED;
-				pthread_mutex_unlock(&task->lock);
-
-				tprintf("[%02d] Started\n", index);
-				task->result = task->entry(task->param);
-				tprintf("[%02d] Success\n", index);
-
-				pthread_mutex_lock(&task->lock);
-				task->status = SUCCESS;
-				pthread_mutex_unlock(&task->lock);
-				pending = 1;
-			}
-			else if (task->status == STARTED)
-			{
-				pthread_mutex_unlock(&task->lock);
-				pending = 1;
-				sched_yield();
-			}
-			else
-				pthread_mutex_unlock(&task->lock);
-		}
+			pending |= try_run_task((task_t *)node->content, index);
 	} while (pending);
 
 	return (NULL);
