@@ -90,6 +90,8 @@ int main(void)
 	struct sockaddr_in client_addr;
 	socklen_t client_len;
 
+	setbuf(stdout, NULL);
+
 	sockfd = create_server_socket();
 	printf("Server listening on port %d\n", PORT);
 
