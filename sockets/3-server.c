@@ -2,114 +2,66 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <netdb.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-
-#define PORT 12345
-#define BUFFER_SIZE 4096
 
 /**
- * create_server_socket - creates and prepares server socket
+ * main - connects to a server and sends it a message
+ * @argc: argument count
+ * @argv: argument vector: program name, host, port, message
  *
- * Return: socket file descriptor
+ * Return: EXIT_SUCCESS on success, EXIT_FAILURE on usage error or
+ * connection failure
  */
-int create_server_socket(void)
+int main(int argc, char *argv[])
 {
+	struct addrinfo hints;
+	struct addrinfo *result;
 	int sockfd;
-	int opt;
-	struct sockaddr_in addr;
+	int status;
 
-	sockfd = socket(AF_INET, SOCK_STREAM, 0);
+	if (argc < 4)
+	{
+		fprintf(stderr, "Usage: %s <host> <port> <message>\n",
+			argv[0]);
+		return (EXIT_FAILURE);
+	}
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_INET;
+	hints.ai_socktype = SOCK_STREAM;
+
+	status = getaddrinfo(argv[1], argv[2], &hints, &result);
+	if (status != 0)
+	{
+		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(status));
+		return (EXIT_FAILURE);
+	}
+
+	sockfd = socket(result->ai_family, result->ai_socktype,
+			result->ai_protocol);
 	if (sockfd == -1)
 	{
 		perror("socket");
-		exit(EXIT_FAILURE);
+		freeaddrinfo(result);
+		return (EXIT_FAILURE);
 	}
 
-	opt = 1;
-	if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR,
-		       &opt, sizeof(opt)) == -1)
+	if (connect(sockfd, result->ai_addr, result->ai_addrlen) == -1)
 	{
-		perror("setsockopt");
-		exit(EXIT_FAILURE);
+		perror("connect");
+		freeaddrinfo(result);
+		close(sockfd);
+		return (EXIT_FAILURE);
 	}
 
-	memset(&addr, 0, sizeof(addr));
-	addr.sin_family = AF_INET;
-	addr.sin_addr.s_addr = INADDR_ANY;
-	addr.sin_port = htons(PORT);
+	printf("Connected to %s:%s\n", argv[1], argv[2]);
+	printf("Sending the message: \"%s\"\n", argv[3]);
+	send(sockfd, argv[3], strlen(argv[3]), 0);
+	printf("Sent\n");
 
-	if (bind(sockfd, (struct sockaddr *)&addr,
-		 sizeof(addr)) == -1)
-	{
-		perror("bind");
-		exit(EXIT_FAILURE);
-	}
+	freeaddrinfo(result);
+	close(sockfd);
 
-	if (listen(sockfd, 128) == -1)
-	{
-		perror("listen");
-		exit(EXIT_FAILURE);
-	}
-
-	return (sockfd);
-}
-
-/**
- * handle_client - accepts and reads client messages
- * @client_fd: client socket descriptor
- * @client_addr: client address
- */
-void handle_client(int client_fd, struct sockaddr_in *client_addr)
-{
-	char buffer[BUFFER_SIZE];
-	ssize_t bytes_read;
-
-	printf("Client connected: %s\n",
-	       inet_ntoa(client_addr->sin_addr));
-
-	bytes_read = recv(client_fd, buffer,
-			  sizeof(buffer) - 1, 0);
-
-	if (bytes_read > 0)
-	{
-		buffer[bytes_read] = '\0';
-		printf("%s\n", buffer);
-	}
-
-	close(client_fd);
-}
-
-/**
- * main - starts server and handles connections
- *
- * Return: always 0
- */
-int main(void)
-{
-	int sockfd;
-	int client_fd;
-	struct sockaddr_in client_addr;
-	socklen_t client_len;
-
-	sockfd = create_server_socket();
-
-	printf("Server listening on port %d\n", PORT);
-
-	while (1)
-	{
-		client_len = sizeof(client_addr);
-
-		client_fd = accept(sockfd,
-				   (struct sockaddr *)&client_addr,
-				   &client_len);
-
-		if (client_fd == -1)
-			continue;
-
-		handle_client(client_fd, &client_addr);
-	}
-
-	return (0);
+	return (EXIT_SUCCESS);
 }
