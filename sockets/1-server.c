@@ -9,20 +9,14 @@
 #define PORT 12345
 
 /**
- * main - opens an IPv4/TCP socket, binds it to port 12345 on any
- * address, and repeatedly accepts incoming connections, printing the
- * connected client's IP address before closing each connection
+ * create_server_socket - creates and prepares the server socket
  *
- * Return: always 0
+ * Return: socket file descriptor
  */
-int main(void)
+int create_server_socket(void)
 {
-	int sockfd;
-	int opt;
-	int client_fd;
+	int sockfd, opt;
 	struct sockaddr_in addr;
-	struct sockaddr_in client_addr;
-	socklen_t client_len;
 
 	sockfd = socket(AF_INET, SOCK_STREAM, 0);
 	if (sockfd == -1)
@@ -44,7 +38,8 @@ int main(void)
 	addr.sin_addr.s_addr = INADDR_ANY;
 	addr.sin_port = htons(PORT);
 
-	if (bind(sockfd, (struct sockaddr *)&addr, sizeof(addr)) == -1)
+	if (bind(sockfd, (struct sockaddr *)&addr,
+		 sizeof(addr)) == -1)
 	{
 		perror("bind");
 		exit(EXIT_FAILURE);
@@ -56,19 +51,35 @@ int main(void)
 		exit(EXIT_FAILURE);
 	}
 
+	return (sockfd);
+}
+
+/**
+ * main - accepts incoming connections and prints client IP addresses
+ *
+ * Return: always 0
+ */
+int main(void)
+{
+	int sockfd;
+	int client_fd;
+	struct sockaddr_in client_addr;
+	socklen_t client_len;
+
+	sockfd = create_server_socket();
 	printf("Server listening on port %d\n", PORT);
 
 	while (1)
 	{
 		client_len = sizeof(client_addr);
-		client_fd = accept(sockfd, (struct sockaddr *)&client_addr,
-				    &client_len);
+		client_fd = accept(sockfd,
+				   (struct sockaddr *)&client_addr,
+				   &client_len);
 		if (client_fd == -1)
 			continue;
 
 		printf("Client connected: %s\n",
 		       inet_ntoa(client_addr.sin_addr));
-
 		close(client_fd);
 	}
 
