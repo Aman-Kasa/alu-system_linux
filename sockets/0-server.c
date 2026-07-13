@@ -8,15 +8,13 @@
 #define PORT 12345
 
 /**
- * main - opens an IPv4/TCP socket, binds it to port 12345 on any
- * address, listens for traffic, and hangs indefinitely
+ * create_server_socket - creates and configures the server socket
  *
- * Return: always 0
+ * Return: socket file descriptor
  */
-int main(void)
+int create_server_socket(void)
 {
-	int sockfd;
-	int opt;
+	int sockfd, opt;
 	struct sockaddr_in addr;
 
 	sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -28,7 +26,7 @@ int main(void)
 
 	opt = 1;
 	if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR,
-		       &opt, sizeof(opt)) == -1)
+		&opt, sizeof(opt)) == -1)
 	{
 		perror("setsockopt");
 		exit(EXIT_FAILURE);
@@ -51,10 +49,24 @@ int main(void)
 		exit(EXIT_FAILURE);
 	}
 
+	return (sockfd);
+}
+
+/**
+ * main - starts the server
+ *
+ * Return: always 0
+ */
+int main(void)
+{
+	int sockfd;
+
+	sockfd = create_server_socket();
 	printf("Server listening on port %d\n", PORT);
 
 	while (1)
 		pause();
 
+	close(sockfd);
 	return (0);
 }
