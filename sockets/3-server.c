@@ -1,109 +1,69 @@
+#include <arpa/inet.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <unistd.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 
-#define PORT 12345
-#define BUFFER_SIZE 4096
+#define PORT         12345
 
 /**
- * create_server_socket - creates and prepares server socket
+ * error_out - prints error, closes open file descriptors and exits
  *
- * Return: socket file descriptor
+ * @str: error message
+ * @server_id: server socket file descriptor
+ * @client_id: client socket file descriptor
  */
-int create_server_socket(void)
+static void error_out(char *str, int *server_id, int *client_id)
 {
-	int sockfd;
-	int opt;
-	struct sockaddr_in addr;
-
-	sockfd = socket(AF_INET, SOCK_STREAM, 0);
-	if (sockfd == -1)
-	{
-		perror("socket");
-		exit(EXIT_FAILURE);
-	}
-
-	opt = 1;
-	if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR,
-		       &opt, sizeof(opt)) == -1)
-	{
-		perror("setsockopt");
-		exit(EXIT_FAILURE);
-	}
-
-	memset(&addr, 0, sizeof(addr));
-	addr.sin_family = AF_INET;
-	addr.sin_addr.s_addr = INADDR_ANY;
-	addr.sin_port = htons(PORT);
-
-	if (bind(sockfd, (struct sockaddr *)&addr, sizeof(addr)) == -1)
-	{
-		perror("bind");
-		exit(EXIT_FAILURE);
-	}
-
-	if (listen(sockfd, 128) == -1)
-	{
-		perror("listen");
-		exit(EXIT_FAILURE);
-	}
-
-	return (sockfd);
+	perror(str);
+	if (client_id)
+		close(*client_id);
+	if (server_id)
+		close(*server_id);
+	exit(EXIT_FAILURE);
 }
 
 /**
- * handle_client - accepts and reads client messages
- * @client_fd: client socket descriptor
- * @client_addr: client address
- */
-void handle_client(int client_fd, struct sockaddr_in *client_addr)
-{
-	char buffer[BUFFER_SIZE];
-	ssize_t bytes_read;
-
-	printf("Client connected: %s\n",
-	       inet_ntoa(client_addr->sin_addr));
-
-	bytes_read = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
-	if (bytes_read > 0)
-	{
-		buffer[bytes_read] = '\0';
-		printf("Message received: \"%s\"\n", buffer);
-	}
-
-	close(client_fd);
-}
-
-/**
- * main - starts server and handles connections
+ * main - Opens an IPv4/TCP socket and listens to traffic on port 12345. Can
+ *        accept an entering connection and waits for an incoming message.
+ *        It prints the received message, then closes the connection
  *
- * Return: always 0
+ * Return: always zero
  */
 int main(void)
 {
-	int sockfd;
-	int client_fd;
-	struct sockaddr_in client_addr;
-	socklen_t client_len;
+	int client_id, server_id = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+	socklen_t addr_size = sizeof(struct sockaddr);
+	struct sockaddr_in server_addr, client_addr;
+	char buffer[1024];
 
-	setbuf(stdout, NULL);
 
-	sockfd = create_server_socket();
+	if (server_id == -1)
+		error_out("Socket", NULL, NULL);
+
+	server_addr.sin_family = AF_INET;
+	server_addr.sin_port = htons(PORT);
+	server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+
+	if (bind(server_id, (struct sockaddr *)&server_addr, addr_size) == -1)
+		error_out("Bind", &server_id, NULL);
+
+	if (listen(server_id, 1) == -1)
+		error_out("Listen", &server_id, NULL);
+
 	printf("Server listening on port %d\n", PORT);
 
-	while (1)
-	{
-		client_len = sizeof(client_addr);
-		client_fd = accept(sockfd, (struct sockaddr *)&client_addr,
-				    &client_len);
-		if (client_fd == -1)
-			continue;
-		handle_client(client_fd, &client_addr);
-	}
+	client_id = accept(server_id, (struct sockaddr *)&client_addr, &addr_size);
+	if (client_id == -1)
+		error_out("Accept", &server_id, NULL);
 
+	printf("Client connected: %s\n", inet_ntoa(client_addr.sin_addr));
+
+	if (recv(client_id, buffer, sizeof(buffer), 0) == -1)
+		error_out("Recv", &server_id, &client_id);
+
+	printf("Message received: \"%s\"\n", buffer);
+
+	close(client_id);
+	close(server_id);
 	return (0);
 }

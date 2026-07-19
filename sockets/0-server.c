@@ -1,72 +1,52 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
+#include <arpa/inet.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <netinet/in.h>
-
-#define PORT 12345
-
-/**
- * create_server_socket - creates and configures the server socket
- *
- * Return: socket file descriptor
- */
-int create_server_socket(void)
-{
-	int sockfd, opt;
-	struct sockaddr_in addr;
-
-	sockfd = socket(AF_INET, SOCK_STREAM, 0);
-	if (sockfd == -1)
-	{
-		perror("socket");
-		exit(EXIT_FAILURE);
-	}
-
-	opt = 1;
-	if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR,
-		&opt, sizeof(opt)) == -1)
-	{
-		perror("setsockopt");
-		exit(EXIT_FAILURE);
-	}
-
-	memset(&addr, 0, sizeof(addr));
-	addr.sin_family = AF_INET;
-	addr.sin_addr.s_addr = INADDR_ANY;
-	addr.sin_port = htons(PORT);
-
-	if (bind(sockfd, (struct sockaddr *)&addr, sizeof(addr)) == -1)
-	{
-		perror("bind");
-		exit(EXIT_FAILURE);
-	}
-
-	if (listen(sockfd, 128) == -1)
-	{
-		perror("listen");
-		exit(EXIT_FAILURE);
-	}
-
-	return (sockfd);
-}
+#include <unistd.h>
+#include <stdio.h>
 
 /**
- * main - starts the server
- *
- * Return: always 0
- */
+* main - Opens a socket and listens on port 12345
+*
+* Return: 0 on success, 1 on failure if binding fails
+*/
 int main(void)
 {
-	int sockfd;
+	int server_fd = socket(AF_INET, SOCK_STREAM, 0);
+	int enable = 1;
+	struct sockaddr_in addr;
 
-	sockfd = create_server_socket();
-	printf("Server listening on port %d\n", PORT);
+	if (server_fd == -1)
+	{
+		perror("socket failed");
+		return (1);
+	}
+
+	/* See man setsockopt */
+	if (setsockopt(server_fd, SOL_SOCKET,
+	SO_REUSEADDR | SO_REUSEPORT, &enable, sizeof(int)) < 0)
+		perror("SO_REUSEADDR | SO_REUSEPORT failed");
+
+	addr.sin_family = AF_INET;
+	addr.sin_port = htons(12345);
+	addr.sin_addr.s_addr = INADDR_ANY;
+
+	if (bind(server_fd, (struct sockaddr *)&addr, sizeof(addr)) == -1)
+	{
+		perror("bind failed");
+		return (1);
+	}
+
+	if (listen(server_fd, 10) == -1)
+	{
+		perror("listen failed");
+		return (1);
+	}
 
 	while (1)
-		pause();
+		continue;
 
-	close(sockfd);
+	close(server_fd);
+
 	return (0);
 }

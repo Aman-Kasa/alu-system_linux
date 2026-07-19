@@ -1,83 +1,78 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
+#include <arpa/inet.h>
 #include <netdb.h>
-#include <sys/socket.h>
+#include <stdio.h>
+#include <unistd.h>
+
+#define EXIT_SUCCESS 0
+#define EXIT_FAILURE 1
 
 /**
- * create_connection - creates and connects a socket
- * @result: address information
+ * hints_init - defines the hints addrinfo struct, which we use for getaddrinfo
  *
- * Return: socket file descriptor on success, -1 on failure
+ * @hints: pointer to addrinfo struct
  */
-int create_connection(struct addrinfo *result)
+static void hints_init(struct addrinfo *hints)
 {
-	int sockfd;
-
-	sockfd = socket(result->ai_family,
-			result->ai_socktype,
-			result->ai_protocol);
-	if (sockfd == -1)
+	if (hints)
 	{
-		perror("socket");
-		return (-1);
+		hints->ai_flags     = 0;
+		hints->ai_family    = AF_INET;
+		hints->ai_socktype  = SOCK_STREAM;
+		hints->ai_protocol  = IPPROTO_TCP;
+		hints->ai_addrlen   = 0;
+		hints->ai_addr      = NULL;
+		hints->ai_canonname = NULL;
+		hints->ai_next      = NULL;
 	}
-
-	if (connect(sockfd, result->ai_addr,
-		    result->ai_addrlen) == -1)
-	{
-		perror("connect");
-		close(sockfd);
-		return (-1);
-	}
-
-	return (sockfd);
 }
 
 /**
- * main - connects to a server given a host and port
+ * main - connects to a listening server. Takes 2 arguments:
+ *        Usage: 2-client <host> <port>
  * @argc: argument count
- * @argv: argument vector
- *
- * Return: EXIT_SUCCESS on success, EXIT_FAILURE on error
+ * @argv: argument array
+ * Return: EXIT_SUCCESS on success | EXIT_FAILURE on failure
  */
 int main(int argc, char *argv[])
 {
-	struct addrinfo hints;
-	struct addrinfo *result;
-	int sockfd;
-	int status;
+	struct addrinfo hints, *host_addrinfo, *tmp;
+	int status, client_id;
 
-	if (argc != 3)
+
+	if (argc < 3)
 	{
 		fprintf(stderr, "Usage: %s <host> <port>\n", argv[0]);
 		return (EXIT_FAILURE);
 	}
 
-	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = AF_INET;
-	hints.ai_socktype = SOCK_STREAM;
-
-	status = getaddrinfo(argv[1], argv[2], &hints, &result);
-	if (status != 0)
+	hints_init(&hints);
+	status = getaddrinfo(argv[1], argv[2], &hints, &host_addrinfo);
+	if (status)
 	{
-		fprintf(stderr, "getaddrinfo: %s\n",
-			gai_strerror(status));
+		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(status));
 		return (EXIT_FAILURE);
 	}
 
-	sockfd = create_connection(result);
-	if (sockfd == -1)
+	client_id = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	if (client_id == -1)
 	{
-		freeaddrinfo(result);
+		perror("socket");
 		return (EXIT_FAILURE);
 	}
 
-	printf("Connected to %s:%s\n", argv[1], argv[2]);
+	for (tmp = host_addrinfo; tmp; tmp = tmp->ai_next)
+	{
+		if (connect(client_id, tmp->ai_addr, tmp->ai_addrlen) == 0)
+		{
+			printf("Connected to %s:%s\n", argv[1], argv[2]);
+			freeaddrinfo(host_addrinfo);
+			close(client_id);
+			return (EXIT_SUCCESS);
+		}
+	}
 
-	freeaddrinfo(result);
-	close(sockfd);
-
-	return (EXIT_SUCCESS);
+	fprintf(stderr, "No valid address found for %s:%s\n", argv[1], argv[2]);
+	freeaddrinfo(host_addrinfo);
+	close(client_id);
+	return (EXIT_FAILURE);
 }
